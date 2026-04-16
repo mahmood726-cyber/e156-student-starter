@@ -1,0 +1,4 @@
+[Delete this and replace with your own 7-sentence, 156-word rewrite.
+Keep the S1-S7 order: Question, Dataset, Method, Result, Robustness,
+Interpretation, Boundary. Use plain language. Don't pad — the 156-word
+limit IS the point of the format, not a ceiling to fill.]

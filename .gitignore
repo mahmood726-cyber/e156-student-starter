@@ -1,0 +1,18 @@
+# Starter-specific ignores
+.env
+*.pyc
+__pycache__/
+.ollama/
+ollama/
+models/
+*.log
+
+# Never commit these — enforced by Sentinel rules if installed later
+.claude/
+.codex/
+.gemini/
+STUCK_FAILURES.md
+STUCK_FAILURES.jsonl
+sentinel-findings.md
+sentinel-findings.jsonl
+PROGRESS.md
