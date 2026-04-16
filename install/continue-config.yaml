@@ -1,0 +1,117 @@
+# Continue.dev config template — drop at ~/.continue/config.yaml
+#
+# Continue.dev is a free VS Code / JetBrains extension that gives you
+# Copilot-style inline AI. Unlike Copilot, Continue talks to any model
+# including local Ollama — so it's free and offline-capable.
+#
+# This config uses the same mixture-of-models the router uses:
+#   - Gemma 2 9B for chat / explain / prose
+#   - Qwen 2.5 Coder 7B for autocomplete / code edits
+#   - Qwen 2.5 Coder 1.5B as the tiny fallback for quick completions
+#
+# Setup:
+#   1. Install the Continue extension in VS Code:
+#      https://marketplace.visualstudio.com/items?itemName=Continue.continue
+#   2. Copy this file to ~/.continue/config.yaml
+#      (on Windows: C:\Users\<you>\.continue\config.yaml)
+#   3. Restart VS Code.
+#   4. Open the Continue panel and it should connect to your local Ollama.
+
+name: E156 Student Mixture
+version: 0.1.0
+schema: v1
+
+models:
+  # --- Primary chat model: prose, explanation, research -------------------
+  - name: Gemma 2 9B (prose)
+    provider: ollama
+    model: gemma2:9b
+    apiBase: http://127.0.0.1:11434
+    defaultCompletionOptions:
+      temperature: 0.7
+      topP: 0.9
+      contextLength: 8192
+    roles:
+      - chat
+      - edit
+
+  # --- Code model: Python, debugging, refactoring ------------------------
+  - name: Qwen 2.5 Coder 7B
+    provider: ollama
+    model: qwen2.5-coder:7b
+    apiBase: http://127.0.0.1:11434
+    defaultCompletionOptions:
+      temperature: 0.2   # lower for code — less creative, more correct
+      contextLength: 32768
+    roles:
+      - chat
+      - edit
+      - apply
+
+  # --- Autocomplete model: fast inline completion -------------------------
+  - name: Qwen 2.5 Coder 1.5B (autocomplete)
+    provider: ollama
+    model: qwen2.5-coder:1.5b
+    apiBase: http://127.0.0.1:11434
+    defaultCompletionOptions:
+      temperature: 0.1
+      maxTokens: 512
+    roles:
+      - autocomplete
+
+# --- Autocomplete tuning -------------------------------------------------
+# Keep autocomplete fast by limiting context and disabling multi-line on
+# slow machines. If autocomplete feels laggy, set enable: false.
+tabAutocompleteOptions:
+  useCopyBuffer: false
+  useSuffix: true
+  maxPromptTokens: 1024
+  debounceDelay: 400
+  disableInFiles:
+    - "*.md"      # we write prose bodies manually, not autocomplete
+    - "*.txt"
+
+# --- Context providers ---------------------------------------------------
+# "/" commands in the Continue panel.
+contextProviders:
+  - provider: file
+  - provider: code
+  - provider: diff
+  - provider: folder
+  - provider: terminal
+  - provider: problems
+
+# --- Slash commands ------------------------------------------------------
+slashCommands:
+  - name: e156
+    description: Validate current buffer as an E156 body (7 sentences, 156 words)
+    prompt: |
+      You are reviewing a draft E156 micro-paper body. Check that it has
+      EXACTLY 7 sentences in this order:
+        S1: Question
+        S2: Dataset
+        S3: Method
+        S4: Result (with number + confidence interval)
+        S5: Robustness
+        S6: Interpretation
+        S7: Boundary / Limitation
+      It must be at most 156 words, single paragraph, no citations or
+      URLs in the prose. If anything is off, list each issue with a
+      specific fix suggestion. Do not rewrite the body — point out what
+      to change.
+
+  - name: rewrite156
+    description: Suggest a 7-sentence 156-word rewrite of the current selection
+    prompt: |
+      Rewrite the selected text as an E156 micro-paper body: exactly 7
+      sentences covering Question / Dataset / Method / Result (with a
+      concrete number + CI) / Robustness / Interpretation / Boundary.
+      Target 156 words or fewer. Plain English, no citations or URLs
+      inside the body. Output ONLY the rewritten body, no commentary.
+
+  - name: explain-stats
+    description: Explain a statistical phrase in plain language for a clinician
+    prompt: |
+      Explain the selected statistical term or result in plain English
+      for a practising clinician. Mention any common misinterpretations.
+      Avoid unnecessary jargon. Keep it to 3-5 sentences.
