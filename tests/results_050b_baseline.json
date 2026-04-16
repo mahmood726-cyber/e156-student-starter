@@ -1,0 +1,63 @@
+{
+  "prose_model": "qwen2.5-coder:0.5b",
+  "code_model": "qwen2.5-coder:0.5b",
+  "passes": 3,
+  "total": 4,
+  "total_elapsed_s": 22.33,
+  "results": [
+    {
+      "id": "prose_rewrite",
+      "kind": "prose",
+      "prose_model": "qwen2.5-coder:0.5b",
+      "code_model": "qwen2.5-coder:0.5b",
+      "elapsed_s": 6.08,
+      "exit_code": 0,
+      "backend_line": "[ai_call] backend=ollama model=qwen2.5-coder:0.5b took=5855ms",
+      "output": "The E156 specification requires a 7-sentence micro-paper format to standardize reporting of meta-analytic results while preserving essential information for clinical decision-making. We developed this format to help researchers maintain consistency across diverse study designs, ensuring full compliance with the 7-sentence constraint. The library dashboard and batch validation pipeline enforce adherence to this format through scripts, with scripts for workbook management, GitHub deployment, and protocol timestamping. The E156 format is designed to facilitate rapid editorial triage, systematic comparison across evidence syntheses, and machine-readable extraction of key results, while also catering to nuanced subgroup analyses and complex network geometries that may require extended narrative.",
+      "output_words": 102,
+      "output_preview": "The E156 specification requires a 7-sentence micro-paper format to standardize reporting of meta-analytic results while preserving essential information for clinical decision-making. We developed this format to help researchers maintain consistency across diverse study designs, ensuring full compliance with the 7-sentence constraint. The library dashboard and batch validation pipeline enforce adhe",
+      "issues": []
+    },
+    {
+      "id": "code_debug",
+      "kind": "code",
+      "prose_model": "qwen2.5-coder:0.5b",
+      "code_model": "qwen2.5-coder:0.5b",
+      "elapsed_s": 5.9,
+      "exit_code": 0,
+      "backend_line": "[ai_call] backend=ollama model=qwen2.5-coder:0.5b took=5681ms",
+      "output": "The bug in the provided code is that it attempts to select rows where a specific column (`nct_id`) does not have a match, which can lead to an error if the column is missing from the DataFrame. The correct approach is to check for the existence of the column using `df.nct_id.isin(df.columns)`, and then use `iloc[0]` to select the first row where that condition is met.\n\nThe diagnosis is:\n- The code checks if `nct_id` exists in `df.columns`.\n- If not, it returns an empty DataFrame or a specific value to indicate no match.\n- This is because if there's no matching column, selecting rows will raise a `KeyError`.\n\nThe fix is:\n```python\nimport pandas as pd\n\ndef first_trial(df, nct_id):\n    # Check if the nct_id exists in df.columns and select the first row where it does\n    return df[df.nct_id.isin(df.columns)].iloc[0]\n```\n\nThis change ensures that the code only attempts to use valid column names and avoids any errors.",
+      "output_words": 155,
+      "output_preview": "The bug in the provided code is that it attempts to select rows where a specific column (`nct_id`) does not have a match, which can lead to an error if the column is missing from the DataFrame. The correct approach is to check for the existence of the column using `df.nct_id.isin(df.columns)`, and then use `iloc[0]` to select the first row where that condition is met.\n\nThe diagnosis is:\n- The code",
+      "issues": []
+    },
+    {
+      "id": "stats_explain",
+      "kind": "stats",
+      "prose_model": "qwen2.5-coder:0.5b",
+      "code_model": "qwen2.5-coder:0.5b",
+      "elapsed_s": 5.64,
+      "exit_code": 0,
+      "backend_line": "[ai_call] backend=ollama model=qwen2.5-coder:0.5b took=5414ms",
+      "output": "Sure! Here's a translation of \"I-squared\" into simple English for a clinician:\n\n\"I\ufffd is an approximation statistic used to test the proportion of participants who are at risk of a specific outcome or condition.\" This sentence describes how we use I\ufffd in meta-analysis, particularly when testing proportions. The term \"risk\" here refers to the likelihood of someone experiencing a specific disease or condition, while \"proportion\" means that we're looking at the number of people who meet our criteria.\n\nOne common misinterpretation is that I\ufffd measures risk, not population size. This can be misleading because if we're comparing different groups (e.g., age and sex), we need to adjust for the overall population size so that I\ufffd represents the proportion of participants in each group relative to the total population.\n\nAnother common misinterpretation is that I\ufffd uses a \"sample\" statistic instead of a \"population\". This can be misleading because samples are not necessarily representative or comparable to the population, and I\ufffd would be biased.",
+      "output_words": 162,
+      "output_preview": "Sure! Here's a translation of \"I-squared\" into simple English for a clinician:\n\n\"I\ufffd is an approximation statistic used to test the proportion of participants who are at risk of a specific outcome or condition.\" This sentence describes how we use I\ufffd in meta-analysis, particularly when testing proportions. The term \"risk\" here refers to the likelihood of someone experiencing a specific disease or co",
+      "issues": [
+        "missed ALL expected keywords: ['heterogeneity', 'variance', 'percent']"
+      ]
+    },
+    {
+      "id": "e156_check",
+      "kind": "prose",
+      "prose_model": "qwen2.5-coder:0.5b",
+      "code_model": "qwen2.5-coder:0.5b",
+      "elapsed_s": 4.71,
+      "exit_code": 0,
+      "backend_line": "[ai_call] backend=ollama model=qwen2.5-coder:0.5b took=4475ms",
+      "output": "Sentence count: 7\nS1-S7 order correct\nOne change that would improve it: The introduction of an interactive library dashboard ensures faster editorial triage, systematic comparison across evidence syntheses, and machine-readable extraction of key results.",
+      "output_words": 34,
+      "output_preview": "Sentence count: 7\nS1-S7 order correct\nOne change that would improve it: The introduction of an interactive library dashboard ensures faster editorial triage, systematic comparison across evidence syntheses, and machine-readable extraction of key results.",
+      "issues": []
+    }
+  ]
+}
