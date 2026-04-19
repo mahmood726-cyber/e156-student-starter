@@ -190,24 +190,38 @@ if (-not (Test-Path $pinsPath)) {
 $pins = Get-Content $pinsPath -Raw | ConvertFrom-Json
 
 $ollamaExe = Join-Path $ollamaDir 'ollama.exe'
+$ollamaUrl = if ($env:E156_OLLAMA_URL_OVERRIDE) { $env:E156_OLLAMA_URL_OVERRIDE } else { $pins.ollama.url }
+$skipShaVerify = [bool]$env:E156_OLLAMA_URL_OVERRIDE   # override is for tests; SHA won't match
 if (-not (Test-Path $ollamaExe)) {
     Write-Step "Downloading portable Ollama $($pins.ollama.version)"
     $ollamaZip = Join-Path $ollamaDir 'ollama-portable.zip'
     try {
-        Start-BitsTransfer -Source $pins.ollama.url -Destination $ollamaZip -Description 'Ollama portable'
+        try {
+            Start-BitsTransfer -Source $ollamaUrl -Destination $ollamaZip -Description 'Ollama portable' -ErrorAction Stop
+        } catch {
+            Invoke-WebRequest -Uri $ollamaUrl -OutFile $ollamaZip -UseBasicParsing -TimeoutSec 30
+        }
     } catch {
-        Invoke-WebRequest -Uri $pins.ollama.url -OutFile $ollamaZip -UseBasicParsing
-    }
-    $actualSha = (Get-FileHash -Algorithm SHA256 $ollamaZip).Hash.ToLower()
-    if ($actualSha -ne $pins.ollama.sha256) {
-        Write-Host "SHA256 mismatch on Ollama zip." -ForegroundColor Red
-        Write-Host "Expected: $($pins.ollama.sha256)"
-        Write-Host "Got:      $actualSha"
-        Invoke-Rollback -E156Root $e156Root -Reason 'Ollama SHA mismatch'
+        Invoke-Rollback -E156Root $e156Root -Reason "Ollama download failed: $($_.Exception.Message)"
         exit 1
     }
-    Expand-Archive -Path $ollamaZip -DestinationPath $ollamaDir -Force
-    Remove-Item $ollamaZip -Force
+    if (-not $skipShaVerify) {
+        $actualSha = (Get-FileHash -Algorithm SHA256 $ollamaZip).Hash.ToLower()
+        if ($actualSha -ne $pins.ollama.sha256) {
+            Write-Host "SHA256 mismatch on Ollama zip." -ForegroundColor Red
+            Write-Host "Expected: $($pins.ollama.sha256)"
+            Write-Host "Got:      $actualSha"
+            Invoke-Rollback -E156Root $e156Root -Reason 'Ollama SHA mismatch'
+            exit 1
+        }
+    }
+    try {
+        Expand-Archive -Path $ollamaZip -DestinationPath $ollamaDir -Force
+        Remove-Item $ollamaZip -Force
+    } catch {
+        Invoke-Rollback -E156Root $e156Root -Reason "Ollama extract failed: $($_.Exception.Message)"
+        exit 1
+    }
     Write-Ok "Ollama extracted to $ollamaDir"
 } else {
     Write-Ok "Ollama already present at $ollamaExe"

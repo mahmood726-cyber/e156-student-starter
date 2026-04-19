@@ -104,3 +104,23 @@ jobs:
             Expected SHA256: `${{ steps.shazip.outputs.sha }}`
 
             Cross-check against: https://synthesis-medicine.org/e156-hash.txt
+
+  integration:
+    needs: build-and-test
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Python deps
+        run: python -m pip install pytest jsonschema
+      - name: Install Ollama (portable)
+        shell: pwsh
+        run: |
+          $pins = Get-Content config/pins.json -Raw | ConvertFrom-Json
+          Invoke-WebRequest -Uri $pins.ollama.url -OutFile "$env:TEMP\ollama.zip"
+          Expand-Archive -Path "$env:TEMP\ollama.zip" -DestinationPath "$env:TEMP\ollama"
+          "$env:TEMP\ollama" >> $env:GITHUB_PATH
+      - name: Run quick integration tests
+        run: python -m pytest tests/integration -m "integration and not slow" -v

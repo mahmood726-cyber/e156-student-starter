@@ -1,0 +1,66 @@
+"""End-to-end: clean %LOCALAPPDATA% -> Start.bat dispatch -> install rollback.
+
+This is the gated release criterion. Plan A is NOT done until tests 1+2 pass
+on Windows; the slow 45-min test runs in CI nightly only.
+"""
+from __future__ import annotations
+
+import os
+import subprocess
+import time
+from pathlib import Path
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows-only E2E")
+@pytest.mark.integration
+def test_start_bat_first_run_prints_install_instruction(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    r = subprocess.run(
+        ["cmd", "/c", str(REPO_ROOT / "Start.bat"), "--what-would-i-do"],
+        capture_output=True, text=True, timeout=10,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "install.ps1" in r.stdout
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows-only E2E")
+@pytest.mark.integration
+def test_install_ps1_rollback_on_unreachable_ollama(tmp_path, monkeypatch):
+    """If the Ollama download URL is unreachable, %LOCALAPPDATA%\\e156\\ is cleaned up."""
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("E156_OLLAMA_URL_OVERRIDE", "http://127.0.0.1:1/does-not-exist")
+    r = subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+         "-File", str(REPO_ROOT / "install" / "install.ps1")],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert not (tmp_path / "e156").exists(), \
+        f"e156 dir should be removed by rollback; install stdout:\n{r.stdout}\nstderr:\n{r.stderr}"
+    assert r.returncode != 0
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows-only E2E")
+@pytest.mark.integration
+@pytest.mark.slow
+def test_full_install_under_45_minutes_wallclock(tmp_path, monkeypatch):
+    """The promise: a first-time user completes install in <45 min on a slow connection.
+
+    Assumes Ollama is available on PATH and gemma2:2b is pre-pulled (CI fixture).
+    Runs without bandwidth throttle here; release.yml adds the throttle in nightly.
+    """
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    start = time.monotonic()
+    r = subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+         "-File", str(REPO_ROOT / "install" / "install.ps1"), "-LowRam"],
+        capture_output=True, text=True, timeout=60 * 45,
+        input="Test User\ntest@example.com\nAGREE\n",
+    )
+    elapsed = time.monotonic() - start
+    assert r.returncode == 0, f"Install failed (elapsed {elapsed:.1f}s):\n{r.stderr[-2000:]}"
+    assert elapsed < 45 * 60, f"Install took {elapsed/60:.1f} min (budget 45)"
+    assert (tmp_path / "e156" / ".installed").exists()
