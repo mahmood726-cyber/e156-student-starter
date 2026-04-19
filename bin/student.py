@@ -97,8 +97,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if not args.subcommand:
-        # No-arg TUI menu is Task 4; for now fall through to help.
-        return _cmd_help(args)
+        from bin.tui import run as run_tui  # noqa: WPS433
+        return run_tui()
 
     handler = HANDLERS.get(args.subcommand)
     if handler is None:
