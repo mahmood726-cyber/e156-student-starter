@@ -53,7 +53,7 @@ TASKS = [
             + EXAMPLE_BODY
         ),
         "min_words": 50,
-        "max_words": 200,
+        "max_words": 156,  # E156 spec hard cap; was 200 (review U-P1-7)
     },
     {
         "id": "code_debug",

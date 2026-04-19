@@ -169,7 +169,7 @@ OLLAMA_HOST=http://127.0.0.1:11434
 # Uncomment and set if you have a Gemini API key from aistudio.google.com:
 # GEMINI_API_KEY=your_key_here
 "@
-Set-Content -Path $envFile -Value $envContent -Encoding UTF8
+[System.IO.File]::WriteAllText($envFile, $envContent, (New-Object System.Text.UTF8Encoding $false))
 Write-Ok "Wrote $envFile"
 
 # --- Step 8: smoke test ----------------------------------------------------
