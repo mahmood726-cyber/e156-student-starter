@@ -1,0 +1,92 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python test deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest jsonschema
+
+      - name: Install Pester 5
+        shell: pwsh
+        run: |
+          Install-Module -Name Pester -MinimumVersion 5.0 -Force -SkipPublisherCheck
+          Import-Module Pester -MinimumVersion 5.0
+
+      - name: Run Python unit tests
+        run: python -m pytest tests/unit -v
+
+      - name: Run Pester tests
+        shell: pwsh
+        run: |
+          if (Test-Path install/pester.tests.ps1) {
+            Invoke-Pester -Path install/pester.tests.ps1 -Output Detailed -CI
+          } else {
+            Write-Host "::warning title=Pester::install/pester.tests.ps1 not found yet (lands in Tasks 8-11); skipping"
+          }
+
+      - name: Assemble bundle layout
+        shell: pwsh
+        run: |
+          $stage = "dist/e156-student-starter-$env:GITHUB_REF_NAME"
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          Copy-Item Start.bat $stage
+          Copy-Item README.md $stage
+          Copy-Item -Recurse ai $stage
+          Copy-Item -Recurse bin $stage
+          Copy-Item -Recurse config $stage
+          Copy-Item -Recurse docs $stage
+          Copy-Item -Recurse install $stage
+          Copy-Item -Recurse rules $stage
+          Copy-Item -Recurse templates $stage
+          Copy-Item -Recurse tests $stage
+          Copy-Item -Recurse tools $stage
+
+      - name: Compute zip SHA256
+        id: shazip
+        shell: pwsh
+        run: |
+          $stage = "dist/e156-student-starter-$env:GITHUB_REF_NAME"
+          $zip = "dist/e156-student-starter-$env:GITHUB_REF_NAME.zip"
+          Compress-Archive -Path "$stage/*" -DestinationPath $zip -Force
+          $sha = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
+          New-Item -ItemType Directory -Path docs -Force | Out-Null
+          Set-Content docs/HASH.txt $sha -NoNewline
+          "sha=$sha" | Out-File -Append $env:GITHUB_OUTPUT
+          Write-Host "::notice title=Zip SHA256::$sha"
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/e156-student-starter-*.zip
+            config/pins.json
+            docs/HASH.txt
+            review-findings.md
+          body: |
+            ## Verification
+
+            After downloading, verify with PowerShell:
+
+            ```powershell
+            Get-FileHash -Algorithm SHA256 e156-student-starter-${{ github.ref_name }}.zip
+            ```
+
+            Expected SHA256: `${{ steps.shazip.outputs.sha }}`
+
+            Cross-check against: https://synthesis-medicine.org/e156-hash.txt
