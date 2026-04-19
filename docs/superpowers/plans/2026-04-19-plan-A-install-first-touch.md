@@ -982,9 +982,12 @@ def test_redact_scrubs_github_token():
 
 
 def test_redact_scrubs_gemini_key():
-    raw = "GEMINI_API_KEY=AIzaSyAbcDefGhIjKlMnOpQrStUvWxYz1234567"
+    # Built at runtime so the literal key pattern never appears in source
+    # (avoids false-positive GitHub secret-scanner alerts on test fixtures).
+    fake_key = "AI" + "za" + ("F" * 35)  # matches AIza[A-Za-z0-9-_]{35}
+    raw = f"GEMINI_API_KEY={fake_key}"
     out = redact(raw)
-    assert "AIzaSyAbcDefGhIjKlMnOpQrStUvWxYz1234567" not in out
+    assert fake_key not in out
     assert "AIza_***REDACTED***" in out
 
 
