@@ -1,0 +1,11 @@
+# Lock PowerShell scripts to CRLF so install.ps1 self-SHA is stable
+# across clones regardless of core.autocrlf setting on the cloning machine.
+*.ps1   text eol=crlf
+*.psd1  text eol=crlf
+*.psm1  text eol=crlf
+Start.bat text eol=crlf
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+
+# HASH.txt is a single line of hex; lock to LF + no final newline.
+docs/HASH.txt text eol=lf
