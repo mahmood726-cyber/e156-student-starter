@@ -40,16 +40,25 @@ def _cmd_help(_args) -> int:
 
 
 def _cmd_new(args) -> int:
+    import os
     if args.template is None:
-        # Plan A ships help-me-pick integration in Task 7
-        print("Let's pick a template for you — (help-me-pick wizard coming up)")
+        print("Let's pick a template for you.")
         if args.dry_run:
             return 0
-        from bin.help_me_pick import run as run_picker  # noqa: WPS433
-        picked = run_picker()
-        args.template = picked
-    # Full scaffolding logic lives in Plan E; Plan A ships T0-blank only.
-    print(f"Scaffolding template {args.template}... (Plan E will wire the rest)")
+        from bin.help_me_pick import run as run_picker
+        run_picker()
+        return 0
+    from bin.scaffold import scaffold
+    slug = args.slug or input("Pick a short slug (lowercase, hyphens): ").strip()
+    workbook = Path(os.environ.get("LOCALAPPDATA", "")) / "e156" / "workbook"
+    workbook.mkdir(parents=True, exist_ok=True)
+    try:
+        target = scaffold(args.template, slug=slug, workbook=workbook,
+                          repo_root=Path(__file__).resolve().parents[1])
+    except NotImplementedError as e:
+        print(f"\n{e}\n")
+        return 1
+    print(f"Scaffolded: {target}")
     return 0
 
 
@@ -82,6 +91,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("subcommand", nargs="?")
     p.add_argument("--template", default=None,
                    choices=["T0", "T1", "T2", "T3", "T4", "T5"])
+    p.add_argument("--slug", default=None)
     p.add_argument("--dry-run", action="store_true")
     return p
 
