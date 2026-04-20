@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["ollama", "models", "data_lakes", "python_embed", "bundle_release"],
+  "properties": {
+    "ollama": {
+      "type": "object",
+      "required": ["version", "sha256", "url"],
+      "properties": {
+        "version": {"type": "string", "pattern": "^v\\d+\\.\\d+\\.\\d+$"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "url":    {"type": "string", "format": "uri"}
+      }
+    },
+    "models": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z0-9.]+:[a-z0-9.]+$": {
+          "type": "object",
+          "required": ["digest"],
+          "properties": {
+            "digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}
+          }
+        }
+      }
+    },
+    "data_lakes": {
+      "type": "object",
+      "patternProperties": {
+        "^(aact|who|wb|ihme)$": {
+          "type": "object",
+          "required": ["zenodo_doi", "status"],
+          "properties": {
+            "zenodo_doi": {"type": ["string", "null"]},
+            "sha256":     {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+            "bytes":      {"type": ["integer", "null"]},
+            "status":     {"enum": ["pinned", "pending_plan_D"]}
+          }
+        }
+      }
+    },
+    "python_embed": {
+      "type": "object",
+      "required": ["version", "sha256", "url"],
+      "properties": {
+        "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+        "sha256":  {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "url":     {"type": "string", "format": "uri"}
+      }
+    },
+    "bundle_release": {
+      "type": "object",
+      "required": ["version"],
+      "properties": {
+        "version": {"type": "string"},
+        "self_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
+      }
+    }
+  }
+}

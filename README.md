@@ -32,29 +32,39 @@ download and (b) pushing your finished paper to GitHub.
 
 ## Install
 
-### Windows (PowerShell, no admin required)
+1. Download `e156-student-starter-v0.2.0.zip` from the
+   [releases page](https://github.com/mahmood726-cyber/e156-student-starter/releases).
+2. Right-click the zip → **Extract All** → pick a folder you'll remember.
+3. Open the folder and **double-click `Start.bat`**.
 
-```powershell
-cd D:\e156-student-starter
-.\install\install.ps1
-```
+That's it. You never need to open PowerShell or type anything in a terminal
+for install.
 
-### Linux / macOS
+### If Windows says "Windows protected your PC"
 
-```bash
-cd ~/e156-student-starter
-bash install/install.sh
-```
+Click **More info** → **Run anyway**. Windows is cautious about scripts
+from the internet. This one is open-source and the SHA256 hash of the zip
+is published at
+[synthesis-medicine.org/e156-hash.txt](https://synthesis-medicine.org/e156-hash.txt).
+You can verify with PowerShell if you want:
 
-Pass `--low-ram` if your laptop has less than 12 GB RAM.
+    Get-FileHash -Algorithm SHA256 e156-student-starter-v0.2.0.zip
 
-The installer will:
-1. Download the portable Ollama runtime (~350 MB).
-2. Pull Gemma 2 and Qwen 2.5 Coder to a local folder (~10 GB one-time).
-3. Set up environment variables.
-4. Run a smoke test to confirm everything works.
+Compare the output with the hash on the Synthesis site. If they match, the
+download is intact.
 
-Total time: **15-45 minutes** depending on your connection.
+### What happens during install
+
+- Checks your RAM and picks the right AI models (2 GB total for small
+  laptops; 8 GB for bigger ones; cloud-only if your laptop is very small).
+- Downloads a portable AI runtime (about 350 MB).
+- Downloads the AI models (2–10 GB depending on your tier).
+- Sets up your `~/e156/` folder.
+- Runs a quick test to confirm everything works.
+- Opens a welcome wizard to record your name and agree to the AI's rules.
+
+**Total download size: 2–10 GB. On a 1.5 Mbps connection this takes 3 to
+15 hours. Leave it running overnight. You can safely pause and resume.**
 
 ---
 
@@ -93,8 +103,7 @@ author. Never more, never less.
 e156-student-starter/
 ├── README.md                  ← you are here
 ├── install/
-│   ├── install.ps1            ← Windows bootstrap
-│   └── install.sh             ← Linux / macOS bootstrap
+│   └── install.ps1            ← Windows bootstrap
 ├── ai/
 │   └── ai_call.py             ← task-typed AI router (pure stdlib)
 ├── tools/

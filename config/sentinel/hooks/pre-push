@@ -1,0 +1,31 @@
+#!/bin/sh
+# e156 Sentinel pre-push hook — installed by bin/scaffold.py.
+# Runs the bundled lightweight scanner against the workbook repo before every
+# `git push`. Blocks the push if any BLOCK-severity rule fires.
+#
+# Override with: SENTINEL_BYPASS=1 git push  (logged to hooks/bypass.log)
+#
+# {{BUNDLE_ROOT}} is replaced with the absolute path to the e156-student-starter
+# bundle at the moment the hook is installed. If the bundle moves, students can
+# run `student sentinel install-hook` to refresh.
+
+set -e
+
+if [ "${SENTINEL_BYPASS:-0}" = "1" ]; then
+    mkdir -p "$(git rev-parse --git-dir)/hooks" 2>/dev/null || true
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) bypass from $(git rev-parse HEAD 2>/dev/null || echo no-commits)" \
+        >> "$(git rev-parse --git-dir)/hooks/bypass.log"
+    exit 0
+fi
+
+BUNDLE_ROOT="{{BUNDLE_ROOT}}"
+SCANNER="$BUNDLE_ROOT/tools/sentinel_check.py"
+WORKBOOK="$(git rev-parse --show-toplevel)"
+
+if [ ! -f "$SCANNER" ]; then
+    echo "[sentinel-hook] scanner not found at $SCANNER - run 'student sentinel install-hook' to refresh" >&2
+    exit 0   # don't block if the bundle moved; students can re-install
+fi
+
+python "$SCANNER" --repo "$WORKBOOK"
+exit $?

@@ -16,3 +16,13 @@ STUCK_FAILURES.jsonl
 sentinel-findings.md
 sentinel-findings.jsonl
 PROGRESS.md
+
+# Plan A
+diagnostic.zip
+dist/
+*.tmp
+tests/results_*.json
+!tests/fixtures/results_*.json
+.pytest_cache/
+python/      # embedded Python downloaded at build time
+bin/ollama/  # portable Ollama downloaded at build time
