@@ -54,6 +54,7 @@ jobs:
           Copy-Item -Recurse config $stage
           Copy-Item -Recurse docs $stage
           Copy-Item -Recurse install $stage
+          Copy-Item -Recurse memory $stage
           Copy-Item -Recurse rules $stage
           Copy-Item -Recurse templates $stage
           Copy-Item -Recurse tests $stage

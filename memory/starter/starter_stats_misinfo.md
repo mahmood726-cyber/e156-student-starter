@@ -4,6 +4,9 @@ description: gemma2:2b mislabels I²; verify any stats definition against advanc
 type: feedback
 ---
 
+<!-- sentinel:skip-file — this memory quotes wrong phrasings AS EXAMPLES of what rules catch -->
+
+
 When you ask `student ai stats` to explain a meta-analysis statistic, the
 TINY-tier prose model (`gemma2:2b`) is prone to specific wrong definitions:
 

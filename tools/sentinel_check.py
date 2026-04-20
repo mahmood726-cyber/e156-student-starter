@@ -1,3 +1,4 @@
+# sentinel:skip-file - scanner references {{BUNDLE_ROOT}} as legitimate code
 """Lightweight Sentinel-compatible scanner for the student starter bundle.
 
 Reads YAML rule files from config/sentinel/rules/ and scans a repo for
