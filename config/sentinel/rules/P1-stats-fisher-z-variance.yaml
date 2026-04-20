@@ -1,0 +1,23 @@
+id: P1-stats-fisher-z-variance
+severity: WARN
+scope: repo
+description: >
+  Fisher z transformation variance is exactly 1/(n-3), NOT 1/(n-2).
+  Source: advanced-stats.md#pooling.
+
+  Models sometimes emit the ANOVA-style n-2 denominator by analogy,
+  which biases the correlation meta-analysis confidence interval.
+pattern: '(?:variance|var|Var|se\^2|SE\^2)\s*(?:of\s+)?(?:Fisher\s+)?z(?:\s+transform(?:ation)?)?[^.\n]{0,60}?1\s*/\s*\(\s*n\s*-\s*2\s*\)'
+files:
+  - '**/*.md'
+  - '**/*.txt'
+  - '**/*.tex'
+  - '**/*.R'
+  - '**/*.r'
+  - '**/*.py'
+  - '**/*.ipynb'
+exclude: []
+fix_hint: >
+  Fisher z variance = 1/(n-3). The n-2 form is for Pearson r standard
+  error, not for the Fisher z transform used in meta-analysis.
+source: advanced-stats.md#pooling

@@ -264,6 +264,14 @@ def ask(task_kind: str, prompt: str) -> Response:
             elapsed = int((time.time() - start) * 1000)
             if DEBUG:
                 print(f"[ai_call] backend={b} model={m} took={elapsed}ms", file=sys.stderr)
+            try:
+                from ai.audit_log import record as _audit_record  # noqa: WPS433
+                _audit_record(
+                    task_kind=task_kind, backend=b, model=m,
+                    prompt=prompt, response=text, elapsed_ms=elapsed,
+                )
+            except Exception:
+                pass  # audit log must never break an ai call
             return Response(text=text, backend=b, model=m, elapsed_ms=elapsed)
         except Exception as e:
             last_err = e

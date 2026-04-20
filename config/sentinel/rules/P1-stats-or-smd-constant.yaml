@@ -1,0 +1,23 @@
+id: P1-stats-or-smd-constant
+severity: WARN
+scope: repo
+description: >
+  Log-OR to SMD conversion uses sqrt(3)/pi ≈ 0.5513, NOT sqrt(3/pi) ≈ 0.9772.
+  Source: advanced-stats.md#pooling.
+
+  Models sometimes emit sqrt(3/pi) by misreading the expression. This
+  nearly doubles the SMD estimate — a major effect-size error.
+pattern: '(?:log[-_\s]*OR|logOR|log\s+odds\s*ratio)[^a-z]{0,80}?(?:sqrt|\\sqrt|√)\s*\(\s*3\s*/\s*(?:pi|π|\\pi)\s*\)'
+files:
+  - '**/*.md'
+  - '**/*.txt'
+  - '**/*.tex'
+  - '**/*.R'
+  - '**/*.r'
+  - '**/*.py'
+  - '**/*.ipynb'
+exclude: []
+fix_hint: >
+  Correct conversion: SMD = logOR * sqrt(3) / pi ≈ logOR * 0.5513.
+  NOT sqrt(3/pi). Source: Chinn 2000, advanced-stats.md#pooling.
+source: advanced-stats.md#pooling

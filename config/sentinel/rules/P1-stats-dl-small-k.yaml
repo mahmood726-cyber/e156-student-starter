@@ -1,0 +1,23 @@
+id: P1-stats-dl-small-k
+severity: WARN
+scope: repo
+description: >
+  DerSimonian-Laird (DL) tau-squared estimator is biased for k < 10
+  studies. Use REML or Paule-Mandel (PM) instead for small meta-analyses.
+  Source: advanced-stats.md#pooling.
+
+  This rule catches text that recommends or describes DL for small-k
+  analyses without flagging the caveat — typical model output like
+  "use DerSimonian-Laird random-effects" in a five-study example.
+pattern: '(?:k\s*=\s*[1-9]\b|k\s*<\s*10|(?:three|four|five|six|seven|eight|nine)\s+studies)[^.\n]{0,150}?\b(?:DerSimonian[-\s]?Laird|\bDL\b)\b'
+files:
+  - '**/*.md'
+  - '**/*.txt'
+  - '**/*.tex'
+  - '**/*.ipynb'
+exclude: []
+fix_hint: >
+  For k < 10 studies, DerSimonian-Laird biases tau^2 toward zero. Use REML
+  (restricted maximum likelihood) or Paule-Mandel instead. If DL is
+  unavoidable, report both DL and REML in a sensitivity analysis.
+source: advanced-stats.md#pooling

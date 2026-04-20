@@ -26,6 +26,37 @@ def _localappdata_e156() -> Path:
     return Path(os.environ.get("LOCALAPPDATA", "")) / "e156"
 
 
+def _prewarm_prose_model() -> None:
+    """Fire-and-forget background thread that loads the prose model into Ollama RAM
+    while the student reads the Gemma rules and types AGREE.
+
+    First-call-ever latency for gemma2:9b is ~60s cold vs ~5s warm. By the time
+    the wizard finishes its 30-60s of interactive prompts, Ollama has the model
+    resident and the first `student ai prose` call returns fast.
+
+    Silent on failure — pre-warm is a UX nicety, not a correctness dep.
+    """
+    import threading
+    import urllib.request
+    import urllib.error
+
+    def _fire() -> None:
+        try:
+            model = os.environ.get("E156_PROSE_MODEL", "gemma2:2b")
+            host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+            body = json.dumps({"model": model, "prompt": "ok", "stream": False}).encode()
+            req = urllib.request.Request(
+                f"{host}/api/generate", data=body,
+                headers={"Content-Type": "application/json"},
+            )
+            urllib.request.urlopen(req, timeout=120).read()
+        except (urllib.error.URLError, TimeoutError, OSError):
+            pass
+
+    t = threading.Thread(target=_fire, daemon=True)
+    t.start()
+
+
 def _offer_hook_install() -> None:
     """Opt-in pre-push hook install. Safe to answer no; student can run
     `student sentinel install-hook` any time later."""
@@ -67,8 +98,11 @@ def _write_consent(name: str, email: str) -> Path:
     return path
 
 
-def run_wizard(skip_smoke: bool = False) -> int:
+def run_wizard(skip_smoke: bool = False, prewarm: bool = True) -> int:
     print("Welcome to e156 - let's get you set up (should take 2 minutes).\n")
+
+    if prewarm:
+        _prewarm_prose_model()
 
     name = input("Your full name: ").strip()
     if not name:

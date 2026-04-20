@@ -68,6 +68,49 @@ def _cmd_doctor(_args) -> int:
     return run_diagnostic()
 
 
+def _cmd_validate(args) -> int:
+    """Run the E156 format validator on a paper body or a workbook."""
+    from tools.validate_e156 import validate, _iter_workbook_rewrites  # noqa: WPS433
+    target = args.path or "."
+    target_path = Path(target)
+    if not target_path.exists():
+        # Default: look for a current_body.txt in the cwd
+        candidate = Path.cwd() / "current_body.txt"
+        if candidate.is_file():
+            target_path = candidate
+        else:
+            print(f"error: {target_path} not found (and no current_body.txt in cwd)")
+            return 2
+    if target_path.is_dir():
+        candidate = target_path / "current_body.txt"
+        if not candidate.is_file():
+            print(f"error: no current_body.txt in {target_path}")
+            return 2
+        target_path = candidate
+
+    text = target_path.read_text(encoding="utf-8", errors="replace")
+
+    if args.all:
+        rewrites = list(_iter_workbook_rewrites(text))
+        if not rewrites:
+            print("error: no YOUR REWRITE blocks found in this file")
+            return 2
+        passes = 0
+        for label, body in rewrites:
+            ok, msgs = validate(body, label=label)
+            for m in msgs:
+                print(m)
+            if ok:
+                passes += 1
+        print(f"\n{passes}/{len(rewrites)} blocks pass.")
+        return 0 if passes == len(rewrites) else 1
+
+    ok, msgs = validate(text, label=str(target_path))
+    for m in msgs:
+        print(m)
+    return 0 if ok else 1
+
+
 def _cmd_memory(args) -> int:
     """Seed the student's personal memory dir with the starter pack."""
     import os
@@ -113,7 +156,7 @@ HANDLERS = {
     "new":      _cmd_new,
     "ai":       _not_yet("ai"),          # Plan B
     "data":     _not_yet("data"),        # Plan D
-    "validate": _not_yet("validate"),    # Plan C
+    "validate": _cmd_validate,
     "rules":    _not_yet("rules"),       # Plan A task 13
     "sentinel": _cmd_sentinel,
     "memory":   _cmd_memory,
@@ -134,6 +177,10 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="install pre-push hook (use with sentinel subcommand)")
     p.add_argument("--force", action="store_true",
                    help="overwrite existing memory dir (use with memory init)")
+    p.add_argument("--path", default=None,
+                   help="paper body .txt path (for `student validate`)")
+    p.add_argument("--all", action="store_true",
+                   help="check every YOUR REWRITE block in a workbook file")
     p.add_argument("--verbose", "-v", action="store_true")
     return p
 

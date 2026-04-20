@@ -1,0 +1,28 @@
+id: P1-stats-dor-sign
+severity: WARN
+scope: repo
+description: >
+  Diagnostic Odds Ratio formula uses SUM of logits: DOR = exp(mu1 + mu2).
+  Models occasionally emit the wrong formula DOR = exp(mu1 - mu2) which
+  is a common derivation error. Source: lessons.md#statistics.
+
+  The correct bivariate-DTA formula is:
+      mu1 = logit(sensitivity)
+      mu2 = logit(specificity)
+      DOR = exp(mu1 + mu2)
+
+  NOT DOR = exp(mu1 - mu2).
+pattern: 'DOR\s*=\s*exp\s*\(\s*(?:mu[_\s]*1|\\mu[_\s]*1|m1|\bmu1)\s*-\s*(?:mu[_\s]*2|\\mu[_\s]*2|m2|\bmu2)\s*\)'
+files:
+  - '**/*.md'
+  - '**/*.txt'
+  - '**/*.tex'
+  - '**/*.R'
+  - '**/*.r'
+  - '**/*.py'
+  - '**/*.ipynb'
+exclude: []
+fix_hint: >
+  DOR is a SUM of logits: DOR = exp(mu1 + mu2) where mu1 = logit(Se) and
+  mu2 = logit(Sp). Subtraction gives LR+ / LR- ratio, not DOR.
+source: lessons.md#statistics
