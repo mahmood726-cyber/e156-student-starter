@@ -60,6 +60,22 @@ def _validate_author(role: str, a: dict) -> list[AuthorshipIssue]:
         out.append(AuthorshipIssue("WARN", role,
             f"{role}.orcid {orcid!r} does not look like a valid ORCID; "
             "expected `https://orcid.org/0000-0001-2345-6789`"))
+    # CRediT roles, if given, must be from the canonical vocabulary
+    roles = a.get("credit_roles") or []
+    if not isinstance(roles, list):
+        out.append(AuthorshipIssue("WARN", role,
+            f"{role}.credit_roles must be a list (got {type(roles).__name__})"))
+    else:
+        valid_ids = {"conceptualization", "data-curation", "formal-analysis",
+                     "funding-acquisition", "investigation", "methodology",
+                     "project-administration", "resources", "software",
+                     "supervision", "validation", "visualization",
+                     "writing-original-draft", "writing-review-editing"}
+        for r in roles:
+            if r not in valid_ids:
+                out.append(AuthorshipIssue("WARN", role,
+                    f"{role}.credit_roles contains non-canonical id {r!r}; "
+                    "see https://credit.niso.org/"))
     return out
 
 
@@ -111,8 +127,17 @@ def save_authorship(slug: str, data: dict) -> Path:
     return path
 
 
-def enrol_interactive(slug: str, *, input_fn=input) -> Path:
-    """Interactive enrol prompt. Pass input_fn for tests."""
+_CREDIT_ROLE_IDS = (
+    "conceptualization", "data-curation", "formal-analysis", "funding-acquisition",
+    "investigation", "methodology", "project-administration", "resources", "software",
+    "supervision", "validation", "visualization", "writing-original-draft",
+    "writing-review-editing",
+)
+
+
+def enrol_interactive(slug: str, *, input_fn=input, orcid_verify=True) -> Path:
+    """Interactive enrol prompt. Pass input_fn for tests. Pass orcid_verify=False to
+    skip live ORCID lookup (useful offline / in tests)."""
     print(f"Enrolling authors for paper `{slug}`.")
     print("The E156 contract requires three authors in fixed positions:")
     print("  first = you (the student)   middle = Mahmood Ahmad   last = your faculty supervisor")
@@ -124,11 +149,37 @@ def enrol_interactive(slug: str, *, input_fn=input) -> Path:
         name = input_fn(f"  Full name [{default_name}]: ").strip() or default_name
         email = input_fn(f"  Email [{default_email}]: ").strip() or default_email
         aff = input_fn(f"  Affiliation [{default_aff}]: ").strip() or default_aff
-        orcid = input_fn("  ORCID (optional, e.g. https://orcid.org/0000-0001-2345-6789): ").strip() or None
+        orcid_raw = input_fn("  ORCID (optional, e.g. https://orcid.org/0000-0001-2345-6789): ").strip() or None
+        orcid = orcid_raw
+        orcid_ok: bool | None = None
+        orcid_note: str | None = None
+        if orcid_raw and orcid_verify:
+            try:
+                from tools.orcid_verify import verify_orcid  # noqa: WPS433
+                r = verify_orcid(orcid_raw)
+                orcid = r.orcid
+                orcid_ok = r.verified
+                orcid_note = r.note
+                if r.verified:
+                    print(f"    ORCID verified: {r.name or '(no public name)'}")
+                else:
+                    print(f"    ORCID NOT verified: {r.note}")
+            except Exception as e:
+                orcid_note = f"verifier error: {e}"
         board = input_fn("  On the editorial board of the target journal? [y/N]: ").strip().lower() == "y"
+        # CRediT roles
+        print("  CRediT roles (https://credit.niso.org/), comma-separated. Examples:")
+        print("    conceptualization, methodology, formal-analysis, writing-original-draft")
+        roles_raw = input_fn("  CRediT roles (blank for none): ").strip()
+        roles = [r.strip() for r in roles_raw.split(",") if r.strip()]
+        bad = [r for r in roles if r not in _CREDIT_ROLE_IDS]
+        if bad:
+            print(f"    WARN: unknown CRediT role(s) {bad}; accepted anyway — fix by hand if needed.")
         return {
             "full_name": name, "email": email, "affiliation": aff,
-            "orcid": orcid, "is_board_member_of_target_journal": board,
+            "orcid": orcid, "orcid_verified": orcid_ok, "orcid_note": orcid_note,
+            "is_board_member_of_target_journal": board,
+            "credit_roles": roles,
         }
 
     data = {

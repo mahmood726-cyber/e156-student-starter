@@ -133,14 +133,16 @@ def test_no_role_paragraph_flag_required_when_board_member(isolated_localappdata
 
 
 def test_enrol_interactive_writes_file(isolated_localappdata):
-    # Simulated input: name/email/aff/orcid/board? for each role, then COI/funding/AI
+    # 7 prompts per author now: name, email, aff, orcid, board?, credit-roles
+    # (orcid-verify is live-only and skipped when orcid blank; we also pass
+    # orcid_verify=False to avoid any accidental network)
     answers = iter([
         # first_author
-        "Ada Smith", "ada@example.ug", "Makerere", "", "n",
+        "Ada Smith", "ada@example.ug", "Makerere", "", "n", "conceptualization, methodology",
         # middle_author (defaults accepted)
-        "", "", "", "", "y",
+        "", "", "", "", "y", "supervision, writing-review-editing",
         # last_author
-        "Prof. Okello", "okello@example.ug", "Makerere", "", "n",
+        "Prof. Okello", "okello@example.ug", "Makerere", "", "n", "supervision",
         # COI
         "n",
         # Funding
@@ -153,12 +155,17 @@ def test_enrol_interactive_writes_file(isolated_localappdata):
     ])
     def _input(_prompt):
         return next(answers)
-    path = enrol_interactive("ada-paper", input_fn=_input)
+    path = enrol_interactive("ada-paper", input_fn=_input, orcid_verify=False)
     assert path.is_file()
     issues = check("ada-paper")
     # Accept WARN/INFO but NOT BLOCK after a valid interactive run
     blocks = [i for i in issues if i.severity == "BLOCK"]
     assert blocks == [], f"unexpected BLOCK after interactive enrol: {blocks}"
+    # Credit roles should be captured
+    import json
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert "conceptualization" in data["first_author"]["credit_roles"]
+    assert "supervision" in data["last_author"]["credit_roles"]
 
 
 def test_student_validate_authorship_cli(isolated_localappdata, tmp_path):

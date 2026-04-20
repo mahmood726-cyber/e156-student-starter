@@ -149,6 +149,93 @@ def test_student_verify_citations_cli_hallucination_exits_1(isolated_localappdat
     assert "Xyzzy" in r.stdout
 
 
+def test_title_similarity_exact_match_is_1():
+    assert cv._title_similarity("PRISMA 2020 statement", "PRISMA 2020 statement") == 1.0
+
+
+def test_title_similarity_partial_match_is_between_0_and_1():
+    sim = cv._title_similarity(
+        "PRISMA 2020 statement an updated guideline",
+        "The PRISMA 2020 statement: an updated guideline for reporting systematic reviews",
+    )
+    assert 0.3 < sim < 1.0
+
+
+def test_title_similarity_different_papers_is_low():
+    sim = cv._title_similarity(
+        "PRISMA 2020 guideline for reporting systematic reviews",
+        "A completely unrelated paper about neonatal sepsis in LMIC",
+    )
+    assert sim < 0.2
+
+
+def test_title_hint_picks_correct_candidate(isolated_localappdata, monkeypatch):
+    """When multiple Page 2021 papers exist, title_hint picks the PRISMA one."""
+    class _Resp:
+        def __init__(self, body): self._body = body.encode("utf-8")
+        def read(self): return self._body
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+
+    esearch_response = json.dumps({"esearchresult": {"idlist": ["37692877", "33782057", "99999999"]}})
+    esummary_response = json.dumps({
+        "result": {
+            "37692877": {"title": "Some Page 2021 paper about COVID"},
+            "33782057": {"title": "The PRISMA 2020 statement an updated guideline for reporting systematic reviews"},
+            "99999999": {"title": "Another Page 2021 paper about heart failure"},
+        },
+    })
+    calls = {"n": 0}
+    def _fake(url, timeout=10.0):
+        calls["n"] += 1
+        return _Resp(esearch_response if "esearch" in url else esummary_response)
+    monkeypatch.setattr(cv.urllib.request, "urlopen", _fake)
+
+    cit = cv.Citation("Page 2021", "Page", "2021",
+                      title_hint="PRISMA 2020 statement an updated guideline")
+    v = cv.verify_pubmed(cit, use_cache=False)
+    assert v.verified is True
+    assert v.pmid == "33782057", f"expected PRISMA PMID; got {v.pmid}"
+    assert v.confidence == "high"
+    assert calls["n"] >= 2  # esearch + esummary
+
+
+def test_no_title_hint_gives_low_confidence_on_multi_match(isolated_localappdata, monkeypatch):
+    class _Resp:
+        def __init__(self, body): self._body = body.encode("utf-8")
+        def read(self): return self._body
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+    def _fake(url, timeout=10.0):
+        if "esearch" in url:
+            return _Resp(json.dumps({"esearchresult": {"idlist": ["1", "2", "3"]}}))
+        return _Resp(json.dumps({"result": {"1": {"title": "T1"}, "2": {"title": "T2"}, "3": {"title": "T3"}}}))
+    monkeypatch.setattr(cv.urllib.request, "urlopen", _fake)
+    cit = cv.Citation("Smith 2020", "Smith", "2020")  # no title hint
+    v = cv.verify_pubmed(cit, use_cache=False)
+    assert v.verified is True
+    assert v.confidence == "low"
+
+
+def test_title_hint_with_bad_match_marks_unverified(isolated_localappdata, monkeypatch):
+    """Author+year matches but no candidate title is close to hint -> FAIL."""
+    class _Resp:
+        def __init__(self, body): self._body = body.encode("utf-8")
+        def read(self): return self._body
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+    def _fake(url, timeout=10.0):
+        if "esearch" in url:
+            return _Resp(json.dumps({"esearchresult": {"idlist": ["1"]}}))
+        return _Resp(json.dumps({"result": {"1": {"title": "Completely unrelated xylophone study"}}}))
+    monkeypatch.setattr(cv.urllib.request, "urlopen", _fake)
+    cit = cv.Citation("Smith 2020", "Smith", "2020",
+                      title_hint="Hydroxyurea and sickle cell pain crises")
+    v = cv.verify_pubmed(cit, use_cache=False)
+    assert v.verified is False
+    assert "title_hint unmatched" in v.note
+
+
 def test_verify_citations_subcommand_in_help():
     import subprocess, sys
     REPO = Path(__file__).resolve().parents[2]

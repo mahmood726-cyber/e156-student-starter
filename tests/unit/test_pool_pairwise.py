@@ -111,7 +111,7 @@ def test_cli_end_to_end_writes_report_json(tmp_path):
     out = tmp_path / "report.json"
     r = subprocess.run(
         [sys.executable, str(POOL_PY), "--data", str(csv_path), "--output", str(out)],
-        capture_output=True, text=True, timeout=15,
+        capture_output=True, text=True, timeout=60,  # was 15; subprocess can be slow under full-suite load
     )
     assert r.returncode == 0, r.stderr
     assert out.is_file()

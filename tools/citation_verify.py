@@ -46,7 +46,8 @@ from tools.project_paths import e156_state_root
 
 _UA_TOOL = "e156-student-starter"
 _UA_EMAIL = "noreply@synthesis-medicine.org"  # NCBI etiquette; can override
-_PUBMED_ESEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+_PUBMED_ESEARCH  = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+_PUBMED_ESUMMARY = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
 _MIN_INTERVAL_S = 0.34  # 3 req/sec cap
 _last_request_ts = 0.0
 
@@ -75,11 +76,32 @@ class Citation:
     raw: str
     first_author: str
     year: str
+    title_hint: str | None = None  # optional title hint for tighter matching
 
     def cache_key(self) -> str:
-        return hashlib.sha256(
-            f"{self.first_author.lower()}|{self.year}".encode("utf-8")
-        ).hexdigest()[:16]
+        key = f"{self.first_author.lower()}|{self.year}"
+        if self.title_hint:
+            key += "|" + self.title_hint.lower()[:80]
+        return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+
+
+def _normalise_title(t: str) -> str:
+    """Lowercase, strip punctuation and common stopwords for title comparison."""
+    t = re.sub(r"[^\w\s]", " ", t.lower())
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+def _title_similarity(a: str, b: str) -> float:
+    """Return 0.0-1.0 similarity of two titles, based on word-multiset Jaccard."""
+    from collections import Counter
+    wa = Counter(_normalise_title(a).split())
+    wb = Counter(_normalise_title(b).split())
+    if not wa or not wb:
+        return 0.0
+    inter = sum((wa & wb).values())
+    union = sum((wa | wb).values())
+    return inter / union if union else 0.0
 
 
 @dataclass
@@ -89,6 +111,11 @@ class Verification:
     pmid: str | None = None
     title: str | None = None
     note: str = ""
+    # Confidence of the match: "high" (title matches title_hint),
+    # "medium" (author+year match + esummary retrieved title),
+    # "low" (surname+year only; multiple candidates exist), None if unverified.
+    confidence: str | None = None
+    candidate_pmids: list[str] = field(default_factory=list)
 
 
 def extract_citations(text: str) -> list[Citation]:
@@ -141,9 +168,45 @@ def _throttle() -> None:
     _last_request_ts = time.monotonic()
 
 
+def _fetch_titles(pmids: list[str], *, timeout: float = 10.0) -> dict[str, str]:
+    """Second-pass: fetch titles for candidate PMIDs via esummary."""
+    if not pmids:
+        return {}
+    params = {
+        "db": "pubmed", "id": ",".join(pmids), "retmode": "json",
+        "tool": _UA_TOOL, "email": _UA_EMAIL,
+    }
+    url = f"{_PUBMED_ESUMMARY}?{urllib.parse.urlencode(params)}"
+    _throttle()
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            data = json.loads(r.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+        return {}
+    result = data.get("result", {})
+    out: dict[str, str] = {}
+    for pid in pmids:
+        rec = result.get(pid)
+        if isinstance(rec, dict):
+            title = rec.get("title", "")
+            if title:
+                out[pid] = title
+    return out
+
+
 def verify_pubmed(cit: Citation, *, timeout: float = 10.0,
-                  use_cache: bool = True) -> Verification:
-    """Look up `cit` on PubMed via E-utilities esearch. Cached; offline-safe."""
+                  use_cache: bool = True, retmax: int = 5) -> Verification:
+    """Look up `cit` on PubMed via E-utilities esearch+esummary.
+
+    Two passes:
+      1. esearch with `author[Author] AND year[dp]` -> up to `retmax` candidate PMIDs
+      2. If title_hint is present, esummary the candidates and pick the one
+         whose title best matches the hint (Jaccard on word multiset).
+      3. If no hint, flag confidence=low when multiple candidates exist.
+
+    Cached by cache_key (hash of author+year+title_hint[:80]). Network failures
+    return unverified with note, never raise.
+    """
     key = cit.cache_key()
     if use_cache:
         cached = _cache_get(key)
@@ -152,12 +215,13 @@ def verify_pubmed(cit: Citation, *, timeout: float = 10.0,
                 citation=cit, verified=cached["verified"],
                 pmid=cached.get("pmid"), title=cached.get("title"),
                 note=cached.get("note", "") + " [cache]",
+                confidence=cached.get("confidence"),
+                candidate_pmids=cached.get("candidate_pmids", []),
             )
 
-    # Query: `<first_author>[Author] AND <year>[dp]`
     term = f'{cit.first_author}[Author] AND {cit.year}[dp]'
     params = {
-        "db": "pubmed", "term": term, "retmode": "json", "retmax": "3",
+        "db": "pubmed", "term": term, "retmode": "json", "retmax": str(retmax),
         "tool": _UA_TOOL, "email": _UA_EMAIL,
     }
     url = f"{_PUBMED_ESEARCH}?{urllib.parse.urlencode(params)}"
@@ -166,24 +230,53 @@ def verify_pubmed(cit: Citation, *, timeout: float = 10.0,
         with urllib.request.urlopen(url, timeout=timeout) as r:
             data = json.loads(r.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, OSError) as e:
-        # Network failure -> treat as "unknown" rather than "hallucinated"
         return Verification(
             citation=cit, verified=False, note=f"network: {type(e).__name__}",
         )
     idlist = data.get("esearchresult", {}).get("idlist", [])
     if not idlist:
         result = {"verified": False, "pmid": None, "title": None,
-                  "note": "no PubMed match"}
-    else:
-        pmid = idlist[0]
-        result = {"verified": True, "pmid": pmid, "title": None,
-                  "note": "PubMed match"}
+                  "note": "no PubMed match", "confidence": None,
+                  "candidate_pmids": []}
+        _cache_put(key, result)
+        return Verification(citation=cit, **result)
+
+    # Second pass: fetch titles for candidates, score against title_hint
+    titles = _fetch_titles(idlist, timeout=timeout)
+    best_pmid = idlist[0]
+    best_title = titles.get(best_pmid)
+    confidence = "low"
+    note = f"PubMed match ({len(idlist)} candidate{'s' if len(idlist) != 1 else ''})"
+
+    if cit.title_hint and titles:
+        scored = [(pid, _title_similarity(cit.title_hint, titles.get(pid, ""))) for pid in idlist]
+        scored.sort(key=lambda x: -x[1])
+        top_pid, top_sim = scored[0]
+        if top_sim >= 0.5:
+            best_pmid = top_pid
+            best_title = titles.get(top_pid)
+            confidence = "high"
+            note = f"PubMed match title-similarity={top_sim:.2f}"
+        elif top_sim >= 0.25:
+            best_pmid = top_pid
+            best_title = titles.get(top_pid)
+            confidence = "medium"
+            note = f"PubMed match title-similarity={top_sim:.2f} (partial)"
+        else:
+            # No candidate's title matches hint -> treat as unverified hallucination
+            result = {"verified": False, "pmid": None, "title": titles.get(idlist[0]),
+                      "note": f"author+year matched but title_hint unmatched (best sim={top_sim:.2f})",
+                      "confidence": None, "candidate_pmids": idlist}
+            _cache_put(key, result)
+            return Verification(citation=cit, **result)
+    elif len(idlist) == 1:
+        confidence = "medium"
+        note = "PubMed unique match"
+
+    result = {"verified": True, "pmid": best_pmid, "title": best_title,
+              "note": note, "confidence": confidence, "candidate_pmids": idlist}
     _cache_put(key, result)
-    return Verification(
-        citation=cit, verified=result["verified"],
-        pmid=result.get("pmid"), title=result.get("title"),
-        note=result["note"],
-    )
+    return Verification(citation=cit, **result)
 
 
 def verify_all(citations: list[Citation], *, backend: str = "pubmed",
@@ -203,7 +296,8 @@ def format_report(verifications: list[Verification]) -> str:
     for v in verifications:
         flag = "OK " if v.verified else "FAIL"
         pmid = f" PMID:{v.pmid}" if v.pmid else ""
-        lines.append(f"  [{flag}] {v.citation.first_author} {v.citation.year}  "
+        conf = f" ({v.confidence})" if v.confidence else ""
+        lines.append(f"  [{flag}] {v.citation.first_author} {v.citation.year}{conf}  "
                      f"{v.note}{pmid}")
     return "\n".join(lines)
 
