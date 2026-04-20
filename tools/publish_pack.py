@@ -90,6 +90,53 @@ def _filter_audit_log(slug: str, e156_root: Path) -> list[dict]:
     return entries
 
 
+def _build_ro_crate_metadata(slug: str, file_list: list[str], bundle_version: str) -> dict:
+    """Emit a minimal RO-Crate 1.2 JSON-LD document.
+
+    RO-Crate (https://www.researchobject.org/ro-crate/) is the W3C community
+    standard for FAIR-compliant research-object packaging. Having this file
+    makes the reproducibility pack portable to any institutional repository
+    or journal submission pipeline that understands the standard.
+    """
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    graph: list[dict] = [
+        {
+            "@id": "ro-crate-metadata.json",
+            "@type": "CreativeWork",
+            "conformsTo": {"@id": "https://w3id.org/ro/crate/1.2-DRAFT"},
+            "about": {"@id": "./"},
+        },
+        {
+            "@id": "./",
+            "@type": "Dataset",
+            "name": f"e156 reproducibility pack: {slug}",
+            "description": (
+                f"E156 student-starter reproducibility pack for paper `{slug}`. "
+                f"Contains paper source, pinned AI/tooling versions, pre-push "
+                f"scan history, audit log, and SHA256 manifest. Bundle version "
+                f"{bundle_version}."
+            ),
+            "datePublished": now,
+            "hasPart": [{"@id": f} for f in sorted(file_list) if f != "ro-crate-metadata.json"],
+        },
+    ]
+    for f in sorted(file_list):
+        if f in ("ro-crate-metadata.json",):
+            continue
+        graph.append({
+            "@id": f,
+            "@type": "File",
+            "encodingFormat": (
+                "application/json" if f.endswith(".json") or f.endswith(".jsonl")
+                else ("text/markdown" if f.endswith(".md") else "text/plain")
+            ),
+        })
+    return {
+        "@context": "https://w3id.org/ro/crate/1.2-DRAFT/context",
+        "@graph": graph,
+    }
+
+
 def build_pack(slug: str, *, out_dir: Path | None = None) -> Path:
     """Build the reproducibility zip for <slug>. Returns the zip path."""
     workbook = _workbook_root()
@@ -143,7 +190,13 @@ def build_pack(slug: str, *, out_dir: Path | None = None) -> Path:
         # 6. README
         (stage / "README.md").write_text(_readme_for(slug, ts), encoding="utf-8")
 
-        # 7. Manifest (SHA256 of every file)
+        # 7a. Add a baseline copy if one exists (per-paper drift history)
+        lad = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+        bl_src = Path(lad) / "e156" / "baseline.json"
+        if bl_src.is_file():
+            shutil.copy2(bl_src, stage / "baseline.json")
+
+        # 7b. Manifest (SHA256 of every file)
         manifest = {
             "slug": slug,
             "generated_at_utc": ts,
@@ -156,6 +209,16 @@ def build_pack(slug: str, *, out_dir: Path | None = None) -> Path:
                 manifest["files"][rel] = _sha256_file(path)
         (stage / "manifest.json").write_text(
             json.dumps(manifest, indent=2), encoding="utf-8",
+        )
+
+        # 7c. RO-Crate 1.2 metadata (FAIR-compliant).
+        files_in_pack = list(manifest["files"].keys()) + ["ro-crate-metadata.json"]
+        (stage / "ro-crate-metadata.json").write_text(
+            json.dumps(
+                _build_ro_crate_metadata(slug, files_in_pack, _bundle_version()),
+                indent=2,
+            ),
+            encoding="utf-8",
         )
 
         # 8. Zip it
@@ -193,7 +256,11 @@ def _readme_for(slug: str, ts: str) -> str:
         "during authoring. Hashes only — no raw prompt or response text.\n"
         "- `consent_fingerprint.json` — SHA256 of (name|email) + "
         "AGREE timestamp. Establishes who authored without leaking PII.\n"
-        "- `manifest.json` — SHA256 of every file in this pack. Tamper-evident.\n\n"
+        "- `manifest.json` — SHA256 of every file in this pack. Tamper-evident.\n"
+        "- `ro-crate-metadata.json` — RO-Crate 1.2 JSON-LD manifest, makes "
+        "this pack portable to any FAIR-compliant institutional repository.\n"
+        "- `baseline.json` (if present) — numerical baseline corpus for this "
+        "paper. Used by `student baseline check` to detect numerical drift.\n\n"
         "## How to verify this pack\n\n"
         "```\n"
         "python -c \"import hashlib, json; "

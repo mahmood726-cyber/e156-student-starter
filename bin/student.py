@@ -28,7 +28,7 @@ from ai.friendly_error import translate
 
 VERSION = "0.2.0-plan-A"
 
-SUBCOMMANDS = ("new", "ai", "data", "validate", "publish", "rules", "sentinel", "memory", "doctor", "help")
+SUBCOMMANDS = ("new", "ai", "data", "validate", "publish", "baseline", "rules", "sentinel", "memory", "doctor", "help")
 
 
 def _cmd_help(_args) -> int:
@@ -66,6 +66,18 @@ def _cmd_new(args) -> int:
 def _cmd_doctor(_args) -> int:
     from tools.get_unstuck import run as run_diagnostic  # noqa: WPS433
     return run_diagnostic()
+
+
+def _cmd_baseline(args) -> int:
+    """Record/check/show/list numerical baselines per paper. Forwards all args
+    after `baseline` on sys.argv to tools.baseline.main."""
+    from tools.baseline import main as baseline_main  # noqa: WPS433
+    try:
+        idx = sys.argv.index("baseline")
+    except ValueError:
+        return 2
+    forwarded = sys.argv[idx + 1:]
+    return baseline_main(forwarded)
 
 
 def _cmd_publish(args) -> int:
@@ -180,6 +192,7 @@ HANDLERS = {
     "data":     _not_yet("data"),        # Plan D
     "validate": _cmd_validate,
     "publish":  _cmd_publish,
+    "baseline": _cmd_baseline,
     "rules":    _not_yet("rules"),       # Plan A task 13
     "sentinel": _cmd_sentinel,
     "memory":   _cmd_memory,

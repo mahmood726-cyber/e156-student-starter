@@ -39,6 +39,21 @@ def test_build_pack_produces_zip_with_expected_files(isolated_localappdata):
     assert "README.md" in names
     assert "pins.json" in names
     assert "ai_calls_filtered.jsonl" in names
+    assert "ro-crate-metadata.json" in names  # FAIR metadata
+
+
+def test_ro_crate_metadata_is_valid_json_ld(isolated_localappdata):
+    wb = isolated_localappdata / "e156" / "workbook"
+    wb.mkdir(parents=True)
+    _make_paper(wb, "fair-slug")
+    zp = build_pack("fair-slug")
+    with zipfile.ZipFile(zp) as zf:
+        crate = json.loads(zf.read("ro-crate-metadata.json"))
+    assert crate["@context"].startswith("https://w3id.org/ro/crate/")
+    assert any(
+        node.get("@id") == "./" and node.get("@type") == "Dataset"
+        for node in crate["@graph"]
+    )
 
 
 def test_manifest_sha256_matches_actual_file_contents(isolated_localappdata):
