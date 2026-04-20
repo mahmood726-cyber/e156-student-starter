@@ -12,9 +12,19 @@
 set -e
 
 if [ "${SENTINEL_BYPASS:-0}" = "1" ]; then
-    mkdir -p "$(git rev-parse --git-dir)/hooks" 2>/dev/null || true
-    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) bypass from $(git rev-parse HEAD 2>/dev/null || echo no-commits)" \
-        >> "$(git rev-parse --git-dir)/hooks/bypass.log"
+    # Review H-P0-1: bypass log goes OUTSIDE .git so `git clean -fdx`
+    # can't delete it, and so publish_pack can include it in the
+    # reproducibility zip for supervisor visibility.
+    if [ -n "${LOCALAPPDATA:-}" ]; then
+        LOGDIR="$LOCALAPPDATA/e156/logs"
+    else
+        LOGDIR="$HOME/.e156/logs"
+    fi
+    mkdir -p "$LOGDIR" 2>/dev/null || true
+    REPO_REMOTE="$(git config --get remote.origin.url 2>/dev/null || echo local)"
+    HEAD_SHA="$(git rev-parse HEAD 2>/dev/null || echo no-commits)"
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) bypass repo=$REPO_REMOTE head=$HEAD_SHA" \
+        >> "$LOGDIR/bypass.log"
     exit 0
 fi
 

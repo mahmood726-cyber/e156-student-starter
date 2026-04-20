@@ -99,11 +99,28 @@ def _write_consent(name: str, email: str) -> Path:
 
 
 def run_wizard(skip_smoke: bool = False, prewarm: bool = True) -> int:
-    print("Welcome to e156 - let's get you set up (should take 2 minutes).\n")
+    print("Welcome to e156 - this wizard takes about 2 minutes of your time.\n")
+    print("(The big model download already happened in the installer before this.)\n")
 
     if prewarm:
         _prewarm_prose_model()
 
+    # Consent-in-the-right-order: show Gemma rules + gate AGREE BEFORE we
+    # capture any PII. A student who refuses has written nothing to disk.
+    print("Before anything is installed or any identity is captured, please")
+    print("read the Gemma Prohibited Use Policy below carefully:\n")
+    _print_gemma_rules()
+
+    print("\nIf you agree to ALL the rules above, type the word AGREE (all caps).")
+    print("If you do not agree, type anything else and the installer will close")
+    print("without writing your name, email, or any files to this laptop.\n")
+
+    answer = input("> ").strip()
+    if answer != "AGREE":
+        print("\nYou did not agree. Nothing has been installed. You can restart later.")
+        return 2
+
+    # Only AFTER AGREE do we ask for identity.
     name = input("Your full name: ").strip()
     if not name:
         print("\nA name is required. Closing.")
@@ -113,17 +130,6 @@ def run_wizard(skip_smoke: bool = False, prewarm: bool = True) -> int:
     if "@" not in email or "." not in email.split("@")[-1]:
         print("\nThat doesn't look like a valid email. Closing.")
         return 1
-
-    print("\nBefore we download the AI models, please read this carefully:\n")
-    _print_gemma_rules()
-
-    print("\nIf you agree to ALL the rules above, type the word AGREE (all caps).")
-    print("If you do not agree, type anything else and the installer will close.\n")
-
-    answer = input("> ").strip()
-    if answer != "AGREE":
-        print("\nYou did not agree. Nothing has been installed. You can restart later.")
-        return 2
 
     path = _write_consent(name, email)
     print(f"\nThanks {name.split()[0]}. Agreement recorded at {path}.\n")

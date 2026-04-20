@@ -24,7 +24,8 @@ if /I "%~1"=="--what-would-i-do" (
 
 if "%NEXT%"=="install" (
     echo Starting e156 installer...
-    echo Safe to leave running. First-run download can take 20 to 90 minutes.
+    echo Safe to leave running. First-run download is 3 to 15 hours on 1.5 Mbps WiFi.
+    echo You can pause and resume anytime (Ctrl+C, re-run Start.bat). Overnight is ideal.
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%HERE%install\install.ps1"
     exit /b %ERRORLEVEL%
 ) else (

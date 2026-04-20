@@ -51,6 +51,29 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 PREFER = os.environ.get("E156_AI_PREFER", "").strip().lower()
 DEBUG = os.environ.get("E156_AI_DEBUG", "") == "1"
 
+# Task kinds that are PII-sensitive by definition. These kinds are valid
+# for local Ollama but are HARD-BLOCKED from every cloud backend, regardless
+# of consent flag. Source: locked spec D10 (data-handling).
+_PATIENT_SENSITIVE_KINDS = frozenset({"patient", "ipd", "dossier", "raw_case"})
+
+
+class ConsentRequiredError(RuntimeError):
+    """Raised when a cloud backend was about to be called without consent.
+    Matches the regex in ai/friendly_error.py so the student gets the
+    plain-English `student ai enable-cloud --i-understand-egress` hint."""
+
+
+def _cloud_consent_given() -> bool:
+    """Read ~/e156/.consent.json::cloud_enabled. Missing file = False."""
+    import json
+    lad = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    consent = os.path.join(lad, "e156", ".consent.json")
+    try:
+        with open(consent, encoding="utf-8") as fh:
+            return bool(json.load(fh).get("cloud_enabled", False))
+    except (OSError, json.JSONDecodeError):
+        return False
+
 
 # --- Model choices ---------------------------------------------------------
 #
@@ -219,9 +242,11 @@ def ask(task_kind: str, prompt: str) -> Response:
     Raises RuntimeError ONLY if every available backend has been tried
     and none answered — the message lists exactly which env vars to set.
     """
-    if task_kind not in {"prose", "code", "stats", "review", "quick"}:
+    if task_kind not in {"prose", "code", "stats", "review", "quick",
+                         "patient", "ipd", "dossier", "raw_case"}:
         raise ValueError(
-            f"task_kind must be prose|code|stats|review|quick, got {task_kind!r}"
+            f"task_kind must be prose|code|stats|review|quick "
+            f"(or patient|ipd|dossier|raw_case for local-only), got {task_kind!r}"
         )
 
     attempts: list[tuple[str, str]] = []
@@ -252,10 +277,22 @@ def ask(task_kind: str, prompt: str) -> Response:
                     raise RuntimeError(f"Ollama not reachable at {OLLAMA_HOST}")
                 text = _call_ollama(m, prompt)
             elif b == "github":
+                if task_kind in _PATIENT_SENSITIVE_KINDS:
+                    raise ConsentRequiredError(
+                        f"task_kind={task_kind!r} never leaves your laptop; no cloud fallback."
+                    )
+                if not _cloud_consent_given():
+                    raise ConsentRequiredError("cloud_enabled=false")
                 if not GITHUB_TOKEN:
                     raise RuntimeError("GITHUB_TOKEN not set")
                 text = _call_github_models(m, prompt)
             elif b == "gemini":
+                if task_kind in _PATIENT_SENSITIVE_KINDS:
+                    raise ConsentRequiredError(
+                        f"task_kind={task_kind!r} never leaves your laptop; no cloud fallback."
+                    )
+                if not _cloud_consent_given():
+                    raise ConsentRequiredError("cloud_enabled=false")
                 if not GEMINI_API_KEY:
                     raise RuntimeError("GEMINI_API_KEY not set")
                 text = _call_gemini(m, prompt)

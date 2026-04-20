@@ -25,7 +25,7 @@ def test_prewarm_does_not_block(monkeypatch):
 def test_wizard_with_prewarm_disabled_flag(isolated_localappdata, monkeypatch):
     """prewarm=False lets tests skip the thread entirely for cleanliness."""
     monkeypatch.setattr("sys.stdin", _fake_stdin([
-        "Ada", "ada@mak.ac.ug", "AGREE", "n",
+        "AGREE", "Ada", "ada@mak.ac.ug", "n",
     ]))
     exit_code = first_run_wizard.run_wizard(skip_smoke=True, prewarm=False)
     assert exit_code == 0
@@ -35,7 +35,7 @@ def test_wizard_with_prewarm_enabled_survives_no_ollama(isolated_localappdata, m
     """With prewarm=True but Ollama unreachable, the wizard still succeeds."""
     monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:1")
     monkeypatch.setattr("sys.stdin", _fake_stdin([
-        "Ada", "ada@mak.ac.ug", "AGREE", "n",
+        "AGREE", "Ada", "ada@mak.ac.ug", "n",
     ]))
     exit_code = first_run_wizard.run_wizard(skip_smoke=True, prewarm=True)
     assert exit_code == 0

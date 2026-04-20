@@ -13,20 +13,21 @@ def _fake_stdin(lines: list[str]) -> io.StringIO:
 
 
 def test_refuses_when_student_does_not_type_AGREE(isolated_localappdata, monkeypatch):
+    # AGREE gate now fires BEFORE name/email — no PII is captured if refused.
     monkeypatch.setattr("sys.stdin", _fake_stdin([
-        "Priscilla Namusoke",
-        "p.namusoke@mak.ac.ug",
         "no thanks",  # should have typed AGREE
     ]))
     exit_code = run_wizard(skip_smoke=True)
     assert exit_code != 0
+    # Crucially, .consent.json must NOT exist
+    assert not (isolated_localappdata / "e156" / ".consent.json").exists()
 
 
 def test_writes_consent_json_when_agree(isolated_localappdata, monkeypatch):
     monkeypatch.setattr("sys.stdin", _fake_stdin([
+        "AGREE",
         "Priscilla Namusoke",
         "p.namusoke@mak.ac.ug",
-        "AGREE",
         "n",  # decline hook install (tested separately)
     ]))
     exit_code = run_wizard(skip_smoke=True)
@@ -42,7 +43,7 @@ def test_writes_consent_json_when_agree(isolated_localappdata, monkeypatch):
 
 def test_wizard_installs_hook_when_yes(isolated_localappdata, monkeypatch):
     monkeypatch.setattr("sys.stdin", _fake_stdin([
-        "Ama", "ama@students.mak.ac.ug", "AGREE", "y",
+        "AGREE", "Ama", "ama@students.mak.ac.ug", "y",
     ]))
     exit_code = run_wizard(skip_smoke=True)
     assert exit_code == 0
@@ -53,7 +54,7 @@ def test_wizard_installs_hook_when_yes(isolated_localappdata, monkeypatch):
 
 def test_wizard_skips_hook_on_no(isolated_localappdata, monkeypatch):
     monkeypatch.setattr("sys.stdin", _fake_stdin([
-        "Ama", "ama@students.mak.ac.ug", "AGREE", "n",
+        "AGREE", "Ama", "ama@students.mak.ac.ug", "n",
     ]))
     exit_code = run_wizard(skip_smoke=True)
     assert exit_code == 0
@@ -64,8 +65,9 @@ def test_wizard_skips_hook_on_no(isolated_localappdata, monkeypatch):
 def test_lowercase_agree_does_not_count(isolated_localappdata, monkeypatch):
     """Case-sensitive AGREE; prevents accidental click-through."""
     monkeypatch.setattr("sys.stdin", _fake_stdin([
-        "Sam", "sam@students.mak.ac.ug", "agree",
-        # no hook-install answer — AGREE rejected before reaching that prompt
+        "agree",  # lowercase — must not count
+        # no name/email — gate rejects before we reach identity capture
     ]))
     exit_code = run_wizard(skip_smoke=True)
     assert exit_code != 0
+    assert not (isolated_localappdata / "e156" / ".consent.json").exists()

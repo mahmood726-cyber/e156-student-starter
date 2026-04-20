@@ -63,6 +63,65 @@ def _cmd_new(args) -> int:
     return 0
 
 
+def _cmd_ai(args) -> int:
+    """Dispatch to ai.ai_call.ask with the task kind and prompt.
+
+    Usage:
+      student ai <task_kind> "<prompt>"        prose|code|stats|review|quick
+      student ai enable-cloud --i-understand-egress
+      student ai disable-cloud
+    """
+    # Support three sub-shapes. First, the consent-flip subcommands.
+    try:
+        idx = sys.argv.index("ai")
+    except ValueError:
+        return 2
+    rest = sys.argv[idx + 1:]
+
+    if rest and rest[0] == "enable-cloud":
+        if "--i-understand-egress" not in rest:
+            print("Run: student ai enable-cloud --i-understand-egress")
+            print("Enabling cloud means prompt + response data leave your laptop.")
+            return 2
+        return _toggle_cloud(True)
+    if rest and rest[0] == "disable-cloud":
+        return _toggle_cloud(False)
+
+    if len(rest) < 2:
+        print("Usage: student ai <prose|code|stats|review|quick> \"<prompt>\"")
+        return 2
+    task_kind = rest[0]
+    prompt = " ".join(rest[1:])
+    try:
+        from ai.ai_call import ask  # noqa: WPS433
+        r = ask(task_kind, prompt)
+    except ValueError as exc:
+        print(str(exc))
+        return 2
+    except Exception as exc:  # noqa: BLE001
+        print(str(translate(exc)))
+        return 1
+    print(r.text)
+    if args.verbose:
+        print(f"\n[backend={r.backend} model={r.model} {r.elapsed_ms}ms]", file=sys.stderr)
+    return 0
+
+
+def _toggle_cloud(enable: bool) -> int:
+    import json
+    import os
+    lad = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    consent_path = Path(lad) / "e156" / ".consent.json"
+    if not consent_path.is_file():
+        print("No .consent.json yet. Run the first-run wizard first.")
+        return 2
+    data = json.loads(consent_path.read_text(encoding="utf-8"))
+    data["cloud_enabled"] = enable
+    consent_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    print(f"Cloud fallback: {'ENABLED' if enable else 'disabled'}")
+    return 0
+
+
 def _cmd_doctor(_args) -> int:
     from tools.get_unstuck import run as run_diagnostic  # noqa: WPS433
     return run_diagnostic()
@@ -199,7 +258,7 @@ def _not_yet(cmd: str):
 HANDLERS = {
     "help":     _cmd_help,
     "new":      _cmd_new,
-    "ai":       _not_yet("ai"),          # Plan B
+    "ai":       _cmd_ai,
     "data":     _not_yet("data"),        # Plan D
     "validate": _cmd_validate,
     "publish":  _cmd_publish,

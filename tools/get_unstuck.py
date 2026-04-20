@@ -20,12 +20,26 @@ _REDACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # Windows user profile paths
     (re.compile(r"C:\\Users\\[^\\]+", re.I), r"~"),
     (re.compile(r"/home/[^/]+", re.I), r"~"),
-    # GitHub PATs (classic + fine-grained)
+    # GitHub classic PATs (ghp_, gho_, ghu_, ghs_, ghr_)
     (re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}"), "ghp_***REDACTED***"),
+    # GitHub fine-grained PATs (review H-P1-1: not caught by the gh[pousr]_ pattern)
+    (re.compile(r"github_pat_[A-Za-z0-9_]{22,}"), "github_pat_***REDACTED***"),
     # Google / Gemini API keys
     (re.compile(r"AIza[0-9A-Za-z\-_]{35}"), "AIza_***REDACTED***"),
-    # Anthropic-style keys
+    # OpenAI project-scoped keys (sk-proj-) — review H-P1-1
+    (re.compile(r"sk-proj-[A-Za-z0-9_\-]{20,}"), "sk-proj-***REDACTED***"),
+    # Anthropic API keys (sk-ant-) — review H-P1-1
+    (re.compile(r"sk-ant-[A-Za-z0-9_\-]{20,}"), "sk-ant-***REDACTED***"),
+    # HuggingFace tokens
+    (re.compile(r"\bhf_[A-Za-z0-9]{30,}"), "hf_***REDACTED***"),
+    # Generic OpenAI-classic keys (sk- + 48 alnum) — retained; narrow match last
     (re.compile(r"sk-[A-Za-z0-9]{48}"), "sk-***REDACTED***"),
+    # OpenSSH private-key blocks (review H-P1-1)
+    (re.compile(r"-----BEGIN OPENSSH PRIVATE KEY-----.*?-----END OPENSSH PRIVATE KEY-----",
+                re.DOTALL), "-----REDACTED-SSH-PRIVKEY-----"),
+    # Other private-key formats
+    (re.compile(r"-----BEGIN (RSA|EC|DSA|PGP) PRIVATE KEY-----.*?-----END \1 PRIVATE KEY-----",
+                re.DOTALL), "-----REDACTED-PRIVKEY-----"),
     # Git user email
     (re.compile(r"(user\.email=|\"email\"\s*:\s*\")[^\s\"\n]+"), r"\1***REDACTED***"),
 ]

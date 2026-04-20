@@ -196,11 +196,25 @@ def build_pack(slug: str, *, out_dir: Path | None = None) -> Path:
         if bl_src.is_file():
             shutil.copy2(bl_src, stage / "baseline.json")
 
+        # 7a.5. Bypass log (review H-P0-1: supervisor must see these)
+        bypass_log_src = Path(lad) / "e156" / "logs" / "bypass.log"
+        bypass_count = 0
+        if bypass_log_src.is_file():
+            shutil.copy2(bypass_log_src, stage / "bypass.log")
+            try:
+                bypass_count = sum(
+                    1 for line in bypass_log_src.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                )
+            except OSError:
+                pass
+
         # 7b. Manifest (SHA256 of every file)
         manifest = {
             "slug": slug,
             "generated_at_utc": ts,
             "bundle_version": _bundle_version(),
+            "bypass_count": bypass_count,  # 0 = clean push history
             "files": {},
         }
         for path in sorted(stage.rglob("*")):
