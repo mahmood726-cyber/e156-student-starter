@@ -28,7 +28,7 @@ from ai.friendly_error import translate
 
 VERSION = "0.2.0-plan-A"
 
-SUBCOMMANDS = ("new", "ai", "data", "validate", "publish", "baseline", "drift", "dashboard", "enroll-authors", "rules", "sentinel", "memory", "doctor", "help")
+SUBCOMMANDS = ("new", "ai", "data", "validate", "publish", "baseline", "drift", "checklist", "verify-citations", "dashboard", "enroll-authors", "rules", "sentinel", "memory", "doctor", "help")
 
 
 def _cmd_help(_args) -> int:
@@ -125,6 +125,31 @@ def _toggle_cloud(enable: bool) -> int:
 def _cmd_doctor(_args) -> int:
     from tools.get_unstuck import run as run_diagnostic  # noqa: WPS433
     return run_diagnostic()
+
+
+def _cmd_verify_citations(args) -> int:
+    """Extract author-year citations from a body and verify each against PubMed."""
+    from tools.citation_verify import (  # noqa: WPS433
+        extract_citations, verify_all, format_report,
+    )
+    if not args.path:
+        print("Usage: student verify-citations --path <body.txt> [--no-cache]")
+        return 2
+    text = Path(args.path).read_text(encoding="utf-8", errors="replace")
+    cits = extract_citations(text)
+    verifications = verify_all(cits, use_cache=not args.no_cache)
+    print(format_report(verifications))
+    return 0 if all(v.verified for v in verifications) else 1
+
+
+def _cmd_checklist(args) -> int:
+    """Dispatch to tools.checklist_walker with everything after `checklist` on sys.argv."""
+    from tools.checklist_walker import main as cl_main  # noqa: WPS433
+    try:
+        idx = sys.argv.index("checklist")
+    except ValueError:
+        return 2
+    return cl_main(sys.argv[idx + 1:])
 
 
 def _cmd_drift(args) -> int:
@@ -325,6 +350,8 @@ HANDLERS = {
     "baseline": _cmd_baseline,
     "dashboard": _cmd_dashboard,
     "drift":    _cmd_drift,
+    "checklist": _cmd_checklist,
+    "verify-citations": _cmd_verify_citations,
     "enroll-authors": _cmd_enroll_authors,
     "rules":    _not_yet("rules"),       # Plan A task 13
     "sentinel": _cmd_sentinel,
@@ -356,6 +383,8 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="also run Tier-C robustness checks (S4 numeric+estimand, S7 boundary substance, placeholders)")
     p.add_argument("--authorship", default=None,
                    help="also run authorship contract check on this paper slug (expects %%LOCALAPPDATA%%\\e156\\workbook\\<slug>\\authorship.json)")
+    p.add_argument("--no-cache", action="store_true",
+                   help="bypass the PubMed citation cache (for `student verify-citations`)")
     p.add_argument("--verbose", "-v", action="store_true")
     return p
 

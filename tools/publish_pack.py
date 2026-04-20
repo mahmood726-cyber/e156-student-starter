@@ -90,6 +90,73 @@ def _filter_audit_log(slug: str, e156_root: Path) -> list[dict]:
     return entries
 
 
+def _build_citation_cff(slug: str, bundle_version: str, authorship_data: dict | None) -> str:
+    """Emit a CITATION.cff (1.2.0) YAML for the paper.
+
+    GitHub auto-renders a "Cite this repository" button when CITATION.cff exists
+    at the repo root. Zenodo auto-consumes it during DOI deposit. This gives
+    every published student paper a machine-readable citation record at zero
+    extra student effort. Spec: https://citation-file-format.github.io/
+    """
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    def _author_block(a: dict) -> list[str]:
+        """Emit a CFF author block from an authorship.json author dict."""
+        if not a:
+            return []
+        full = (a.get("full_name") or "").strip()
+        parts = full.split(None, 1)
+        given = parts[0] if parts else "Anonymous"
+        family = parts[1] if len(parts) > 1 else "Anonymous"
+        lines = [
+            f"  - family-names: {family}",
+            f"    given-names: {given}",
+        ]
+        if a.get("email"):
+            lines.append(f"    email: {a['email']}")
+        if a.get("affiliation"):
+            lines.append(f"    affiliation: {_yaml_escape(a['affiliation'])}")
+        orcid = a.get("orcid")
+        if orcid:
+            # Normalise to the full URI form CFF expects.
+            if not orcid.startswith("https://"):
+                orcid = f"https://orcid.org/{orcid}"
+            lines.append(f"    orcid: {orcid}")
+        return lines
+
+    authors_lines: list[str] = []
+    if authorship_data:
+        for role in ("first_author", "middle_author", "last_author"):
+            authors_lines.extend(_author_block(authorship_data.get(role, {})))
+    if not authors_lines:
+        authors_lines = [
+            "  - family-names: Anonymous",
+            "    given-names: Student",
+        ]
+
+    cff = [
+        "cff-version: 1.2.0",
+        "message: \"If you cite this paper, please use the metadata below.\"",
+        f"title: \"E156 paper: {slug}\"",
+        f"version: \"{bundle_version}\"",
+        f"date-released: {now}",
+        "type: article",
+        "authors:",
+    ]
+    cff.extend(authors_lines)
+    cff.append("keywords:")
+    cff.append("  - e156")
+    cff.append("  - systematic-review")
+    return "\n".join(cff) + "\n"
+
+
+def _yaml_escape(s: str) -> str:
+    """Minimal YAML-safe string escaping for single-line values."""
+    if any(ch in s for ch in ":#&*!?|>'\"%@`"):
+        return json.dumps(s, ensure_ascii=False)
+    return s
+
+
 def _build_ro_crate_metadata(slug: str, file_list: list[str], bundle_version: str) -> dict:
     """Emit a minimal RO-Crate 1.2 JSON-LD document.
 
@@ -155,7 +222,7 @@ def build_pack(slug: str, *, out_dir: Path | None = None) -> Path:
         stage = Path(td) / f"{slug}-publish"
         stage.mkdir()
 
-        # 1. Paper files
+        # 1. Paper files (includes checklists/ subdirectory by inclusion)
         paper_out = stage / "paper"
         shutil.copytree(paper_dir, paper_out, ignore=shutil.ignore_patterns(".git"))
 
@@ -195,6 +262,20 @@ def build_pack(slug: str, *, out_dir: Path | None = None) -> Path:
         bl_src = Path(lad) / "e156" / "baseline.json"
         if bl_src.is_file():
             shutil.copy2(bl_src, stage / "baseline.json")
+
+        # 7a.5a. CITATION.cff (GitHub + Zenodo auto-consume)
+        # Read the paper's authorship.json if present, to name authors properly.
+        authorship_src = paper_dir / "authorship.json"
+        authorship_data = None
+        if authorship_src.is_file():
+            try:
+                authorship_data = json.loads(authorship_src.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                authorship_data = None
+        (stage / "CITATION.cff").write_text(
+            _build_citation_cff(slug, _bundle_version(), authorship_data),
+            encoding="utf-8",
+        )
 
         # 7a.5. Bypass log (review H-P0-1: supervisor must see these)
         bypass_log_src = Path(lad) / "e156" / "logs" / "bypass.log"

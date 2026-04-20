@@ -1,0 +1,81 @@
+{
+  "id": "stard-2015",
+  "name": "STARD 2015",
+  "version": "2015",
+  "applies_to": ["diagnostic-accuracy", "dta"],
+  "source": "Bossuyt PM, Reitsma JB, Bruns DE, Gatsonis CA, Glasziou PP, Irwig L, et al. STARD 2015: an updated list of essential items for reporting diagnostic accuracy studies. BMJ 2015;351:h5527. doi: 10.1136/bmj.h5527",
+  "license": "CC-BY (source paper); clean-room structured representation",
+  "canonical_url": "https://www.equator-network.org/reporting-guidelines/stard/",
+  "sections": [
+    {
+      "id": "title_abstract",
+      "name": "Title / Abstract / Keywords",
+      "items": [
+        {"id": "1", "topic": "Identification", "text": "Identification as a study of diagnostic accuracy using at least one measure of accuracy (such as sensitivity, specificity, predictive values, or AUC)."},
+        {"id": "2", "topic": "Abstract",       "text": "Structured summary of study design, methods, results, and conclusions (for specific guidance, see STARD for Abstracts)."}
+      ]
+    },
+    {
+      "id": "introduction",
+      "name": "Introduction",
+      "items": [
+        {"id": "3", "topic": "Background", "text": "Scientific and clinical background, including the intended use and clinical role of the index test."},
+        {"id": "4", "topic": "Objectives", "text": "Study objectives and hypotheses."}
+      ]
+    },
+    {
+      "id": "methods",
+      "name": "Methods",
+      "items": [
+        {"id": "5",   "topic": "Study design",   "text": "Whether data collection was planned before the index test and reference standard were performed (prospective study) or after (retrospective study)."},
+        {"id": "6",   "topic": "Participants",   "text": "Eligibility criteria."},
+        {"id": "7",   "topic": "Participants",   "text": "On what basis potentially eligible participants were identified (such as symptoms, results from previous tests, inclusion in registry)."},
+        {"id": "8",   "topic": "Participants",   "text": "Where and when potentially eligible participants were identified (setting, location, and dates)."},
+        {"id": "9",   "topic": "Participants",   "text": "Whether participants formed a consecutive, random, or convenience series."},
+        {"id": "10a", "topic": "Test methods",   "text": "Index test, in sufficient detail to allow replication."},
+        {"id": "10b", "topic": "Test methods",   "text": "Reference standard, in sufficient detail to allow replication."},
+        {"id": "11",  "topic": "Test methods",   "text": "Rationale for choosing the reference standard (if alternatives exist)."},
+        {"id": "12a", "topic": "Test methods",   "text": "Definition of and rationale for test positivity cut-offs or result categories of the index test, distinguishing pre-specified from exploratory."},
+        {"id": "12b", "topic": "Test methods",   "text": "Definition of and rationale for test positivity cut-offs or result categories of the reference standard, distinguishing pre-specified from exploratory."},
+        {"id": "13a", "topic": "Test methods",   "text": "Whether clinical information and reference standard results were available to the performers/readers of the index test."},
+        {"id": "13b", "topic": "Test methods",   "text": "Whether clinical information and index test results were available to the assessors of the reference standard."},
+        {"id": "14",  "topic": "Analysis",       "text": "Methods for estimating or comparing measures of diagnostic accuracy."},
+        {"id": "15",  "topic": "Analysis",       "text": "How indeterminate index test or reference standard results were handled."},
+        {"id": "16",  "topic": "Analysis",       "text": "How missing data on the index test and reference standard were handled."},
+        {"id": "17",  "topic": "Analysis",       "text": "Any analyses of variability in diagnostic accuracy, distinguishing pre-specified from exploratory."},
+        {"id": "18",  "topic": "Analysis",       "text": "Intended sample size and how it was determined."}
+      ]
+    },
+    {
+      "id": "results",
+      "name": "Results",
+      "items": [
+        {"id": "19",  "topic": "Participants",  "text": "Flow of participants, using a diagram."},
+        {"id": "20",  "topic": "Participants",  "text": "Baseline demographic and clinical characteristics of participants."},
+        {"id": "21a", "topic": "Participants",  "text": "Distribution of severity of disease in those with the target condition."},
+        {"id": "21b", "topic": "Participants",  "text": "Distribution of alternative diagnoses in those without the target condition."},
+        {"id": "22",  "topic": "Participants",  "text": "Time interval and any clinical interventions between index test and reference standard."},
+        {"id": "23",  "topic": "Test results",  "text": "Cross tabulation of the index test results (or their distribution) by the results of the reference standard."},
+        {"id": "24",  "topic": "Test results",  "text": "Estimates of diagnostic accuracy and their precision (such as 95% confidence intervals)."},
+        {"id": "25",  "topic": "Test results",  "text": "Any adverse events from performing the index test or the reference standard."}
+      ]
+    },
+    {
+      "id": "discussion",
+      "name": "Discussion",
+      "items": [
+        {"id": "26", "topic": "Limitations",    "text": "Study limitations, including sources of potential bias, statistical uncertainty, and generalisability."},
+        {"id": "27", "topic": "Implications",   "text": "Implications for practice, including the intended use and clinical role of the index test."}
+      ]
+    },
+    {
+      "id": "other",
+      "name": "Other information",
+      "items": [
+        {"id": "28", "topic": "Registration", "text": "Registration number and name of registry."},
+        {"id": "29", "topic": "Protocol",     "text": "Where the full study protocol can be accessed."},
+        {"id": "30", "topic": "Funding",      "text": "Sources of funding and other support; role of funders."}
+      ]
+    }
+  ]
+}

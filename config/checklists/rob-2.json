@@ -1,0 +1,66 @@
+{
+  "id": "rob-2",
+  "name": "Cochrane Risk of Bias 2 (RoB 2)",
+  "version": "22 August 2019",
+  "applies_to": ["rct", "randomised-trial"],
+  "source": "Sterne JAC, Savovic J, Page MJ, Elbers RG, Blencowe NS, Boutron I, et al. RoB 2: a revised tool for assessing risk of bias in randomised trials. BMJ 2019;366:l4898. doi: 10.1136/bmj.l4898",
+  "license": "CC-BY 4.0 (source paper); clean-room structured representation",
+  "canonical_url": "https://www.riskofbias.info/welcome/rob-2-0-tool",
+  "instructions": "Assess one outcome per study. For each signalling question, answer Y (Yes), PY (Probably Yes), PN (Probably No), N (No), NI (No Information), or NA (Not Applicable). Each domain yields a judgment: Low / Some concerns / High risk of bias. The overall judgment is the worst domain judgment unless concerns accumulate across multiple domains, in which case raise to High.",
+  "answer_choices": ["Y", "PY", "PN", "N", "NI", "NA"],
+  "domain_judgments": ["Low", "Some concerns", "High"],
+  "sections": [
+    {
+      "id": "d1",
+      "name": "Domain 1: Bias arising from the randomization process",
+      "items": [
+        {"id": "1.1", "topic": "Randomization", "text": "Was the allocation sequence random?"},
+        {"id": "1.2", "topic": "Randomization", "text": "Was the allocation sequence concealed until participants were enrolled and assigned to interventions?"},
+        {"id": "1.3", "topic": "Randomization", "text": "Did baseline differences between intervention groups suggest a problem with the randomization process?"}
+      ]
+    },
+    {
+      "id": "d2",
+      "name": "Domain 2: Bias due to deviations from intended interventions (effect of assignment to intervention)",
+      "items": [
+        {"id": "2.1", "topic": "Deviations", "text": "Were participants aware of their assigned intervention during the trial?"},
+        {"id": "2.2", "topic": "Deviations", "text": "Were carers and people delivering the interventions aware of participants' assigned intervention during the trial?"},
+        {"id": "2.3", "topic": "Deviations", "text": "If Y/PY/NI to 2.1 or 2.2: Were there deviations from the intended intervention that arose because of the trial context?"},
+        {"id": "2.4", "topic": "Deviations", "text": "If Y/PY to 2.3: Were these deviations likely to have affected the outcome?"},
+        {"id": "2.5", "topic": "Deviations", "text": "If Y/PY/NI to 2.4: Were these deviations from intended intervention balanced between groups?"},
+        {"id": "2.6", "topic": "Deviations", "text": "Was an appropriate analysis used to estimate the effect of assignment to intervention?"},
+        {"id": "2.7", "topic": "Deviations", "text": "If N/PN/NI to 2.6: Was there potential for a substantial impact (on the result) of the failure to analyse participants in the group to which they were randomized?"}
+      ]
+    },
+    {
+      "id": "d3",
+      "name": "Domain 3: Bias due to missing outcome data",
+      "items": [
+        {"id": "3.1", "topic": "Missing data", "text": "Were data for this outcome available for all, or nearly all, participants randomized?"},
+        {"id": "3.2", "topic": "Missing data", "text": "If N/PN/NI to 3.1: Is there evidence that the result was not biased by missing outcome data?"},
+        {"id": "3.3", "topic": "Missing data", "text": "If N/PN to 3.2: Could missingness in the outcome depend on its true value?"},
+        {"id": "3.4", "topic": "Missing data", "text": "If Y/PY/NI to 3.3: Is it likely that missingness in the outcome depended on its true value?"}
+      ]
+    },
+    {
+      "id": "d4",
+      "name": "Domain 4: Bias in measurement of the outcome",
+      "items": [
+        {"id": "4.1", "topic": "Measurement", "text": "Was the method of measuring the outcome inappropriate?"},
+        {"id": "4.2", "topic": "Measurement", "text": "Could measurement or ascertainment of the outcome have differed between intervention groups?"},
+        {"id": "4.3", "topic": "Measurement", "text": "If N/PN/NI to 4.1 and 4.2: Were outcome assessors aware of the intervention received by study participants?"},
+        {"id": "4.4", "topic": "Measurement", "text": "If Y/PY/NI to 4.3: Could assessment of the outcome have been influenced by knowledge of intervention received?"},
+        {"id": "4.5", "topic": "Measurement", "text": "If Y/PY/NI to 4.4: Is it likely that assessment of the outcome was influenced by knowledge of intervention received?"}
+      ]
+    },
+    {
+      "id": "d5",
+      "name": "Domain 5: Bias in selection of the reported result",
+      "items": [
+        {"id": "5.1", "topic": "Reported result", "text": "Were the data that produced this result analysed in accordance with a pre-specified analysis plan that was finalized before unblinded outcome data were available for analysis?"},
+        {"id": "5.2", "topic": "Reported result", "text": "Is the numerical result being assessed likely to have been selected, on the basis of the results, from multiple eligible outcome measurements (e.g. scales, definitions, time points) within the outcome domain?"},
+        {"id": "5.3", "topic": "Reported result", "text": "Is the numerical result being assessed likely to have been selected, on the basis of the results, from multiple eligible analyses of the data?"}
+      ]
+    }
+  ]
+}

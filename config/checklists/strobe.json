@@ -1,0 +1,89 @@
+{
+  "id": "strobe",
+  "name": "STROBE",
+  "version": "2007",
+  "applies_to": ["observational", "cohort", "case-control", "cross-sectional"],
+  "source": "von Elm E, Altman DG, Egger M, Pocock SJ, Gotzsche PC, Vandenbroucke JP; STROBE Initiative. The Strengthening the Reporting of Observational Studies in Epidemiology (STROBE) Statement: guidelines for reporting observational studies. PLoS Med 2007;4(10):e296. doi: 10.1371/journal.pmed.0040296",
+  "license": "CC-BY (source paper); clean-room structured representation",
+  "canonical_url": "https://www.strobe-statement.org/",
+  "note": "Items marked applies_to_design=cohort/case-control/cross-sectional apply only to that design. Others apply to all three.",
+  "sections": [
+    {
+      "id": "title_abstract",
+      "name": "Title and abstract",
+      "items": [
+        {"id": "1a", "topic": "Title and abstract", "text": "Indicate the study's design with a commonly used term in the title or the abstract."},
+        {"id": "1b", "topic": "Title and abstract", "text": "Provide in the abstract an informative and balanced summary of what was done and what was found."}
+      ]
+    },
+    {
+      "id": "introduction",
+      "name": "Introduction",
+      "items": [
+        {"id": "2", "topic": "Background/rationale", "text": "Explain the scientific background and rationale for the investigation being reported."},
+        {"id": "3", "topic": "Objectives",           "text": "State specific objectives, including any prespecified hypotheses."}
+      ]
+    },
+    {
+      "id": "methods",
+      "name": "Methods",
+      "items": [
+        {"id": "4",   "topic": "Study design", "text": "Present key elements of study design early in the paper."},
+        {"id": "5",   "topic": "Setting",      "text": "Describe the setting, locations, and relevant dates, including periods of recruitment, exposure, follow-up, and data collection."},
+        {"id": "6a-cohort",   "topic": "Participants", "applies_to_design": "cohort",        "text": "Give the eligibility criteria, and the sources and methods of selection of participants. Describe methods of follow-up."},
+        {"id": "6a-cc",       "topic": "Participants", "applies_to_design": "case-control",  "text": "Give the eligibility criteria, and the sources and methods of case ascertainment and control selection. Give the rationale for the choice of cases and controls."},
+        {"id": "6a-cross",    "topic": "Participants", "applies_to_design": "cross-sectional","text": "Give the eligibility criteria, and the sources and methods of selection of participants."},
+        {"id": "6b-cohort",   "topic": "Participants", "applies_to_design": "cohort",        "text": "For matched studies, give matching criteria and number of exposed and unexposed."},
+        {"id": "6b-cc",       "topic": "Participants", "applies_to_design": "case-control",  "text": "For matched studies, give matching criteria and the number of controls per case."},
+        {"id": "7",   "topic": "Variables",     "text": "Clearly define all outcomes, exposures, predictors, potential confounders, and effect modifiers. Give diagnostic criteria, if applicable."},
+        {"id": "8",   "topic": "Data sources/ measurement", "text": "For each variable of interest, give sources of data and details of methods of assessment (measurement). Describe comparability of assessment methods if there is more than one group."},
+        {"id": "9",   "topic": "Bias",          "text": "Describe any efforts to address potential sources of bias."},
+        {"id": "10",  "topic": "Study size",    "text": "Explain how the study size was arrived at."},
+        {"id": "11",  "topic": "Quantitative variables", "text": "Explain how quantitative variables were handled in the analyses. If applicable, describe which groupings were chosen and why."},
+        {"id": "12a", "topic": "Statistical methods", "text": "Describe all statistical methods, including those used to control for confounding."},
+        {"id": "12b", "topic": "Statistical methods", "text": "Describe any methods used to examine subgroups and interactions."},
+        {"id": "12c", "topic": "Statistical methods", "text": "Explain how missing data were addressed."},
+        {"id": "12d-cohort","topic": "Statistical methods", "applies_to_design": "cohort",        "text": "If applicable, explain how loss to follow-up was addressed."},
+        {"id": "12d-cc",    "topic": "Statistical methods", "applies_to_design": "case-control",  "text": "If applicable, explain how matching of cases and controls was addressed."},
+        {"id": "12d-cross", "topic": "Statistical methods", "applies_to_design": "cross-sectional","text": "If applicable, describe analytical methods taking account of sampling strategy."},
+        {"id": "12e", "topic": "Statistical methods", "text": "Describe any sensitivity analyses."}
+      ]
+    },
+    {
+      "id": "results",
+      "name": "Results",
+      "items": [
+        {"id": "13a", "topic": "Participants",            "text": "Report numbers of individuals at each stage of study - e.g. numbers potentially eligible, examined for eligibility, confirmed eligible, included in the study, completing follow-up, and analysed."},
+        {"id": "13b", "topic": "Participants",            "text": "Give reasons for non-participation at each stage."},
+        {"id": "13c", "topic": "Participants",            "text": "Consider use of a flow diagram."},
+        {"id": "14a", "topic": "Descriptive data",        "text": "Give characteristics of study participants (e.g. demographic, clinical, social) and information on exposures and potential confounders."},
+        {"id": "14b", "topic": "Descriptive data",        "text": "Indicate number of participants with missing data for each variable of interest."},
+        {"id": "14c-cohort", "topic": "Descriptive data", "applies_to_design": "cohort", "text": "Summarise follow-up time (e.g. average and total amount)."},
+        {"id": "15-cohort",  "topic": "Outcome data",     "applies_to_design": "cohort",        "text": "Report numbers of outcome events or summary measures over time."},
+        {"id": "15-cc",      "topic": "Outcome data",     "applies_to_design": "case-control",  "text": "Report numbers in each exposure category, or summary measures of exposure."},
+        {"id": "15-cross",   "topic": "Outcome data",     "applies_to_design": "cross-sectional","text": "Report numbers of outcome events or summary measures."},
+        {"id": "16a", "topic": "Main results",            "text": "Give unadjusted estimates and, if applicable, confounder-adjusted estimates and their precision (e.g. 95% confidence interval). Make clear which confounders were adjusted for and why they were included."},
+        {"id": "16b", "topic": "Main results",            "text": "Report category boundaries when continuous variables were categorized."},
+        {"id": "16c", "topic": "Main results",            "text": "If relevant, consider translating estimates of relative risk into absolute risk for a meaningful time period."},
+        {"id": "17",  "topic": "Other analyses",          "text": "Report other analyses done - e.g. analyses of subgroups and interactions, and sensitivity analyses."}
+      ]
+    },
+    {
+      "id": "discussion",
+      "name": "Discussion",
+      "items": [
+        {"id": "18", "topic": "Key results",     "text": "Summarise key results with reference to study objectives."},
+        {"id": "19", "topic": "Limitations",     "text": "Discuss limitations of the study, taking into account sources of potential bias or imprecision. Discuss both direction and magnitude of any potential bias."},
+        {"id": "20", "topic": "Interpretation",  "text": "Give a cautious overall interpretation of results considering objectives, limitations, multiplicity of analyses, results from similar studies, and other relevant evidence."},
+        {"id": "21", "topic": "Generalisability","text": "Discuss the generalisability (external validity) of the study results."}
+      ]
+    },
+    {
+      "id": "other",
+      "name": "Other information",
+      "items": [
+        {"id": "22", "topic": "Funding", "text": "Give the source of funding and the role of the funders for the present study and, if applicable, for the original study on which the present article is based."}
+      ]
+    }
+  ]
+}

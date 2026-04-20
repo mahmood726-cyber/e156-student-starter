@@ -1,0 +1,42 @@
+{
+  "id": "care",
+  "name": "CARE (Case Reports)",
+  "version": "2013",
+  "applies_to": ["case-report", "case-series"],
+  "source": "Gagnier JJ, Kienle G, Altman DG, Moher D, Sox H, Riley D; CARE Group. The CARE guidelines: consensus-based clinical case reporting guideline development. BMJ Case Rep 2013;2013:bcr2013201554. doi: 10.1136/bcr-2013-201554",
+  "license": "CC-BY (source paper); clean-room structured representation",
+  "canonical_url": "https://www.care-statement.org/",
+  "sections": [
+    {
+      "id": "title_keywords_abstract",
+      "name": "Title / Key words / Abstract",
+      "items": [
+        {"id": "1", "topic": "Title",     "text": "The words 'case report' should be in the title along with the phenomenon of greatest interest (e.g. symptom, diagnosis, test, intervention)."},
+        {"id": "2", "topic": "Key words", "text": "2 to 5 key words capturing the key elements of the case."},
+        {"id": "3", "topic": "Abstract",  "text": "Structured abstract: introduction, main symptoms and/or clinical findings, main diagnoses, therapeutic interventions and outcomes, conclusion."}
+      ]
+    },
+    {
+      "id": "body",
+      "name": "Body",
+      "items": [
+        {"id": "4",  "topic": "Introduction",         "text": "One or two paragraphs summarising why this case is unique with references."},
+        {"id": "5",  "topic": "Patient information",  "text": "De-identified demographic information, main symptoms, medical/family/psycho-social history (including genetic, if relevant), relevant past interventions and outcomes."},
+        {"id": "6",  "topic": "Clinical findings",    "text": "Relevant physical examination and other clinical findings."},
+        {"id": "7",  "topic": "Timeline",             "text": "Historical and current information from this episode of care organised as a timeline."},
+        {"id": "8",  "topic": "Diagnostic assessment","text": "Diagnostic methods; diagnostic challenges; diagnostic reasoning including other diagnoses considered; prognostic characteristics."},
+        {"id": "9",  "topic": "Therapeutic intervention","text": "Types of intervention (pharmacologic, surgical, preventive, self-care); administration (dose, strength, duration, frequency); changes with rationale."},
+        {"id": "10", "topic": "Follow-up and outcomes","text": "Clinician- and patient-assessed outcomes; important follow-up test results; adherence and tolerability; adverse and unanticipated events."}
+      ]
+    },
+    {
+      "id": "discussion",
+      "name": "Discussion",
+      "items": [
+        {"id": "11", "topic": "Discussion",         "text": "Strengths and limitations of your approach; discussion of relevant medical literature; rationale for conclusions (including assessments of cause and effect); main 'take-away' lessons."},
+        {"id": "12", "topic": "Patient perspective","text": "The patient should share their perspective or experience whenever possible."},
+        {"id": "13", "topic": "Informed consent",   "text": "Statement of patient informed consent (or assent) to publish. If not provided, reasons why."}
+      ]
+    }
+  ]
+}
