@@ -1,0 +1,66 @@
+{
+  "prose_model": "gemma2:9b",
+  "code_model": "qwen2.5-coder:7b",
+  "passes": 2,
+  "total": 4,
+  "total_elapsed_s": 459.75,
+  "results": [
+    {
+      "id": "prose_rewrite",
+      "kind": "prose",
+      "prose_model": "gemma2:9b",
+      "code_model": "qwen2.5-coder:7b",
+      "elapsed_s": 180.0,
+      "exit_code": 124,
+      "backend_line": "",
+      "output": "",
+      "output_words": 0,
+      "output_preview": "[TIMEOUT after 180s]",
+      "issues": [
+        "exit code 124",
+        "output too short: 0 words < 50"
+      ]
+    },
+    {
+      "id": "code_debug",
+      "kind": "code",
+      "prose_model": "gemma2:9b",
+      "code_model": "qwen2.5-coder:7b",
+      "elapsed_s": 104.36,
+      "exit_code": 0,
+      "backend_line": "[ai_call] backend=ollama model=qwen2.5-coder:7b took=103243ms",
+      "output": "**Diagnosis:** The function assumes that there will always be at least one row where `nct_id` matches the input. If no such row exists, it will raise an `IndexError`.\n\n**Fix:** Add a check to ensure that the resulting DataFrame is not empty before trying to access its elements.\n\n```python\nimport pandas as pd\ndef first_trial(df, nct_id):\n    result = df[df.nct_id == nct_id]\n    if not result.empty:\n        return result.iloc[0]\n    else:\n        return None  # or raise a custom exception, handle the error appropriately\n```\n\nThis fix ensures that the function handles cases where no matching rows are found gracefully.",
+      "output_words": 94,
+      "output_preview": "**Diagnosis:** The function assumes that there will always be at least one row where `nct_id` matches the input. If no such row exists, it will raise an `IndexError`.\n\n**Fix:** Add a check to ensure that the resulting DataFrame is not empty before trying to access its elements.\n\n```python\nimport pandas as pd\ndef first_trial(df, nct_id):\n    result = df[df.nct_id == nct_id]\n    if not result.empty:",
+      "issues": []
+    },
+    {
+      "id": "stats_explain",
+      "kind": "stats",
+      "prose_model": "gemma2:9b",
+      "code_model": "qwen2.5-coder:7b",
+      "elapsed_s": 56.33,
+      "exit_code": 0,
+      "backend_line": "[ai_call] backend=ollama model=gemma2:9b took=55411ms",
+      "output": "I\ufffd is a statistic that measures the amount of disagreement between different studies included in a meta-analysis. A higher I\ufffd value indicates greater variability between the studies' results, suggesting potential differences in study populations or methodologies.  A common misconception is that high I\ufffd always means the studies are unreliable \ufffd it simply highlights inconsistency and requires further investigation into its causes.",
+      "output_words": 61,
+      "output_preview": "I\ufffd is a statistic that measures the amount of disagreement between different studies included in a meta-analysis. A higher I\ufffd value indicates greater variability between the studies' results, suggesting potential differences in study populations or methodologies.  A common misconception is that high I\ufffd always means the studies are unreliable \ufffd it simply highlights inconsistency and requires furthe",
+      "issues": [
+        "missed ALL expected keywords: ['heterogeneity', 'variance', 'percent']"
+      ]
+    },
+    {
+      "id": "e156_check",
+      "kind": "prose",
+      "prose_model": "gemma2:9b",
+      "code_model": "qwen2.5-coder:7b",
+      "elapsed_s": 119.06,
+      "exit_code": 0,
+      "backend_line": "[ai_call] backend=ollama model=gemma2:9b took=118607ms",
+      "output": "(a) 8 sentences  \n(b) Incorrect (S1-S7 order not followed)  \n(c) Reorder sentences to follow S1-S7 structure: Question, Dataset, Method, Result, Robustness, Interpretation, Boundary.",
+      "output_words": 23,
+      "output_preview": "(a) 8 sentences  \n(b) Incorrect (S1-S7 order not followed)  \n(c) Reorder sentences to follow S1-S7 structure: Question, Dataset, Method, Result, Robustness, Interpretation, Boundary.",
+      "issues": []
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+id: P1-stats-misinformation
+severity: WARN
+scope: repo
+description: >
+  Catches specific wrong statistical definitions that local Ollama models
+  (gemma2:2b especially) produce for meta-analysis statistics. Matches only
+  phrasings observed in practice, not near-correct statements.
+
+  Current patterns flagged:
+  - "I² measures the variance within studies" — WRONG. I² measures the
+    proportion of between-study variance due to heterogeneity, not variance
+    magnitude and not within-study variance.
+  - "I² measures the amount of variance" — OFF. I² is a proportion (0-100%),
+    not a magnitude. Correct phrasing uses "proportion of" or "percentage of".
+  - "I² reflects variability within [the] meta-analysis results" — WRONG.
+    I² is between-study, not within.
+  - "measures the [amount of] disagreement" (for I² specifically) — LOOSE.
+    Pedagogically acceptable but not precise enough for submission-grade prose.
+
+  Intentionally NOT flagged:
+  - "I² is the proportion of variance due to heterogeneity" (correct)
+  - "I² is the percentage of variance between studies" (correct)
+  - "I² measures inconsistency between studies" (loose but not wrong)
+pattern: '\bI[-]?(?:2|\u00b2|\ufffd|-squared)(?=[\s.,;:\b])[^\n]{0,120}?\b(?:measures|reflects|shows|represents|accounts for|indicates)\b[^\n]{0,80}?(?:variance within|variability within|amount of variance|amount of disagreement)'
+files:
+  - '**/*.md'
+  - '**/*.txt'
+  - '**/*.rst'
+  - '**/*.tex'
+  - '**/*.ipynb'
+exclude: []
+fix_hint: >
+  I² is the PROPORTION (0-100%) of between-study variance due to heterogeneity,
+  not a magnitude. Correct phrasing: "I² = proportion of total variance due to
+  between-study heterogeneity." Source: rules/advanced-stats.md#heterogeneity.
+source: rules/advanced-stats.md#heterogeneity

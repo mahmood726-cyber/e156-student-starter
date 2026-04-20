@@ -1,0 +1,61 @@
+{
+  "prose_model": "gemma2:2b",
+  "code_model": "qwen2.5-coder:1.5b",
+  "passes": 4,
+  "total": 4,
+  "total_elapsed_s": 221.6,
+  "results": [
+    {
+      "id": "prose_rewrite",
+      "kind": "prose",
+      "prose_model": "gemma2:2b",
+      "code_model": "qwen2.5-coder:1.5b",
+      "elapsed_s": 81.4,
+      "exit_code": 0,
+      "backend_line": "[ai_call] backend=ollama model=gemma2:2b took=80939ms",
+      "output": "We explored if a standardized 7-sentence format could enhance meta-analytic reporting while staying relevant for clinical decision-making.  The E156 specification dictates exactly seven sentences: question, dataset, method, result, robustness, interpretation, and limitation, all within 156 words. We tested this approach with 339 meta-analysis projects encompassing various study designs like pairwise comparisons, network analyses, diagnostic accuracy assessments, and prevalence studies.  All projects fully met the 7-sentence constraint, averaging 152.4 words (ranging from 138 to 156), showing flexibility for diverse studies. Our interactive library dashboard and automated validation pipeline ensure compliance across all entries. This E156 format facilitates faster editorial review, efficient comparative analysis of multiple syntheses, and consistent extraction of key results.  However, it cannot capture nuanced subgroup analyses or complex network structures that require more detailed explanations.",
+      "output_words": 127,
+      "output_preview": "We explored if a standardized 7-sentence format could enhance meta-analytic reporting while staying relevant for clinical decision-making.  The E156 specification dictates exactly seven sentences: question, dataset, method, result, robustness, interpretation, and limitation, all within 156 words. We tested this approach with 339 meta-analysis projects encompassing various study designs like pairwi",
+      "issues": []
+    },
+    {
+      "id": "code_debug",
+      "kind": "code",
+      "prose_model": "gemma2:2b",
+      "code_model": "qwen2.5-coder:1.5b",
+      "elapsed_s": 56.72,
+      "exit_code": 0,
+      "backend_line": "[ai_call] backend=ollama model=qwen2.5-coder:1.5b took=54606ms",
+      "output": "The bug in this function is that it returns the entire row associated with `nct_id` instead of the corresponding value. The function should use `.values[0]` to extract the value from the first column of the matching row.\n\nShort fix:\n```python\nimport pandas as pd\ndef first_trial(df, nct_id):\n    return df[df.nct_id == nct_id].iloc[0].values[0]\n```\n\nTo verify this change, you can use the following test case:\n\n```python\n# Test the function with a sample DataFrame and NCT ID\ndf = pd.DataFrame({\n    'nct_id': [123456789, 987654321, 111223344],\n    'value': ['A', 'B', 'C']\n})\n\n# Expected output: 'A'\nprint(first_trial(df, 123456789))\n```",
+      "output_words": 94,
+      "output_preview": "The bug in this function is that it returns the entire row associated with `nct_id` instead of the corresponding value. The function should use `.values[0]` to extract the value from the first column of the matching row.\n\nShort fix:\n```python\nimport pandas as pd\ndef first_trial(df, nct_id):\n    return df[df.nct_id == nct_id].iloc[0].values[0]\n```\n\nTo verify this change, you can use the following t",
+      "issues": []
+    },
+    {
+      "id": "stats_explain",
+      "kind": "stats",
+      "prose_model": "gemma2:2b",
+      "code_model": "qwen2.5-coder:1.5b",
+      "elapsed_s": 41.69,
+      "exit_code": 0,
+      "backend_line": "[ai_call] backend=ollama model=gemma2:2b took=38745ms",
+      "output": "I\ufffd measures the variance within your study's results, showing how much of the variation is explained by the true effect size and not just random chance.  It helps you understand whether the overall impact of your intervention or treatment is reliable and consistent across studies. A common misconception is that I\ufffd reflects a significant difference between studies, but it actually only accounts for variability within the meta-analysis results themselves.",
+      "output_words": 69,
+      "output_preview": "I\ufffd measures the variance within your study's results, showing how much of the variation is explained by the true effect size and not just random chance.  It helps you understand whether the overall impact of your intervention or treatment is reliable and consistent across studies. A common misconception is that I\ufffd reflects a significant difference between studies, but it actually only accounts for",
+      "issues": []
+    },
+    {
+      "id": "e156_check",
+      "kind": "prose",
+      "prose_model": "gemma2:2b",
+      "code_model": "qwen2.5-coder:1.5b",
+      "elapsed_s": 41.79,
+      "exit_code": 0,
+      "backend_line": "[ai_call] backend=ollama model=gemma2:2b took=37481ms",
+      "output": "**(a) 7 sentences**\n\n**(b) Correct**\n\n**(c)**  The text could benefit from expanding on the \"robustness\" section to provide specific examples and techniques, enhancing reader understanding and appreciation for its benefits.",
+      "output_words": 30,
+      "output_preview": "**(a) 7 sentences**\n\n**(b) Correct**\n\n**(c)**  The text could benefit from expanding on the \"robustness\" section to provide specific examples and techniques, enhancing reader understanding and appreciation for its benefits.",
+      "issues": []
+    }
+  ]
+}

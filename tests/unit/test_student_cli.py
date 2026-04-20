@@ -27,8 +27,26 @@ def test_version_prints_and_exits_zero():
 def test_help_lists_all_subcommands():
     r = run_cli("help")
     assert r.returncode == 0
-    for cmd in ("new", "ai", "data", "validate", "rules", "doctor", "help"):
+    for cmd in ("new", "ai", "data", "validate", "rules", "sentinel", "doctor", "help"):
         assert cmd in r.stdout
+
+
+def test_sentinel_subcommand_runs_scan(tmp_path):
+    (tmp_path / "clean.py").write_text("print('ok')\n", encoding="utf-8")
+    r = run_cli("sentinel", "--repo", str(tmp_path))
+    assert r.returncode == 0
+    assert "sentinel-check" in r.stdout
+    assert "BLOCK=0" in r.stdout
+
+
+def test_sentinel_subcommand_blocks_hardcoded_path(tmp_path):
+    (tmp_path / "bad.py").write_text(
+        r'DATA = r"C:\Users\alice\data.csv"' + "\n",
+        encoding="utf-8",
+    )
+    r = run_cli("sentinel", "--repo", str(tmp_path))
+    assert r.returncode == 1
+    assert "P0-hardcoded-local-path" in r.stdout
 
 
 def test_unknown_subcommand_friendly_error():

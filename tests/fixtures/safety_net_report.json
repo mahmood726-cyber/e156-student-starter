@@ -1,0 +1,82 @@
+{
+  "tiers": [
+    {
+      "tier_model_prose": "gemma2:9b",
+      "tier_model_code": "qwen2.5-coder:7b",
+      "total_tasks": 4,
+      "tasks_with_findings": 1,
+      "total_findings": 1,
+      "per_task": [
+        {
+          "task_id": "prose_rewrite",
+          "kind": "prose",
+          "output_words": 0,
+          "findings": 0,
+          "rules_triggered": []
+        },
+        {
+          "task_id": "code_debug",
+          "kind": "code",
+          "output_words": 94,
+          "findings": 1,
+          "rules_triggered": [
+            "P1-empty-dataframe-access"
+          ]
+        },
+        {
+          "task_id": "stats_explain",
+          "kind": "stats",
+          "output_words": 61,
+          "findings": 0,
+          "rules_triggered": []
+        },
+        {
+          "task_id": "e156_check",
+          "kind": "prose",
+          "output_words": 23,
+          "findings": 0,
+          "rules_triggered": []
+        }
+      ]
+    },
+    {
+      "tier_model_prose": "gemma2:2b",
+      "tier_model_code": "qwen2.5-coder:1.5b",
+      "total_tasks": 4,
+      "tasks_with_findings": 1,
+      "total_findings": 2,
+      "per_task": [
+        {
+          "task_id": "prose_rewrite",
+          "kind": "prose",
+          "output_words": 127,
+          "findings": 0,
+          "rules_triggered": []
+        },
+        {
+          "task_id": "code_debug",
+          "kind": "code",
+          "output_words": 94,
+          "findings": 2,
+          "rules_triggered": [
+            "P1-empty-dataframe-access"
+          ]
+        },
+        {
+          "task_id": "stats_explain",
+          "kind": "stats",
+          "output_words": 69,
+          "findings": 0,
+          "rules_triggered": []
+        },
+        {
+          "task_id": "e156_check",
+          "kind": "prose",
+          "output_words": 30,
+          "findings": 0,
+          "rules_triggered": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+<!-- sentinel:skip-file — instructional doc showing example Windows paths -->
 # Air-gapped / low-connectivity workflows
 
 This starter is designed to work fully offline **after the one-time

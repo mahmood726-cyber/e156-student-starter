@@ -1,3 +1,4 @@
+<!-- sentinel:skip-file — review doc discusses the exact patterns rules catch -->
 ## Multi-Persona Design Review: e156-student-starter bundle
 
 ### Date: 2026-04-19

@@ -26,6 +26,31 @@ def _localappdata_e156() -> Path:
     return Path(os.environ.get("LOCALAPPDATA", "")) / "e156"
 
 
+def _offer_hook_install() -> None:
+    """Opt-in pre-push hook install. Safe to answer no; student can run
+    `student sentinel install-hook` any time later."""
+    print("Before every `git push`, a tiny scanner can flag common AI-assisted")
+    print("mistakes (hardcoded paths, empty-DataFrame bugs, placeholder text).")
+    print("Takes 2 seconds, blocks only on serious issues, skippable per push.\n")
+    answer = input("Install the pre-push safety net? [Y/n] ").strip().lower()
+    if answer and answer not in ("y", "yes"):
+        print("Skipped. Run `student sentinel install-hook` later if you change your mind.\n")
+        return
+
+    workbook = _localappdata_e156() / "workbook"
+    workbook.mkdir(parents=True, exist_ok=True)
+    import subprocess
+    if not (workbook / ".git").is_dir():
+        subprocess.run(["git", "init", "-q"], cwd=workbook, check=False)
+
+    from tools.sentinel_check import install_hook  # noqa: WPS433
+    try:
+        target = install_hook(workbook)
+        print(f"Hook installed at {target}.\n")
+    except (FileNotFoundError, RuntimeError) as e:
+        print(f"Couldn't install hook: {e}. Run `student sentinel install-hook` later.\n")
+
+
 def _write_consent(name: str, email: str) -> Path:
     root = _localappdata_e156()
     root.mkdir(parents=True, exist_ok=True)
@@ -68,6 +93,8 @@ def run_wizard(skip_smoke: bool = False) -> int:
 
     path = _write_consent(name, email)
     print(f"\nThanks {name.split()[0]}. Agreement recorded at {path}.\n")
+
+    _offer_hook_install()
 
     if skip_smoke:
         return 0
