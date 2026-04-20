@@ -1,0 +1,3 @@
+smoke-out/*.log
+smoke-out/*.jsonl
+!smoke-out/.gitkeep
