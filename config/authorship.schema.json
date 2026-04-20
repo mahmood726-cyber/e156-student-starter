@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://e156.synthesis/authorship.schema.json",
+  "description": "E156 paper authorship contract. Encodes the first/middle/last positional requirement + declared COI + funding + AI-disclosure fields. Enforced by `student validate --strict --authorship` and by the pre-push hook.",
+  "type": "object",
+  "required": ["first_author", "middle_author", "last_author", "conflicts_of_interest", "funding_sources", "ai_assistance_disclosed"],
+  "properties": {
+    "first_author":  {"$ref": "#/$defs/author"},
+    "middle_author": {"$ref": "#/$defs/author"},
+    "last_author":   {"$ref": "#/$defs/author"},
+    "conflicts_of_interest": {
+      "type": "object",
+      "required": ["has_conflicts", "statement"],
+      "properties": {
+        "has_conflicts": {"type": "boolean"},
+        "statement": {"type": "string", "minLength": 0, "maxLength": 400}
+      }
+    },
+    "funding_sources": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1, "maxLength": 200}
+    },
+    "ai_assistance_disclosed": {
+      "type": "object",
+      "required": ["used_ai", "disclosure_sentence"],
+      "description": "ICMJE Dec-2023: any AI tool used in generating manuscript text must be disclosed. If used_ai is true, the body MUST contain the disclosure sentence verbatim (or its canonical equivalent) and the audit log must be appended to the reproducibility pack.",
+      "properties": {
+        "used_ai": {"type": "boolean"},
+        "disclosure_sentence": {"type": "string", "maxLength": 300},
+        "backends": {
+          "type": "array",
+          "items": {"enum": ["ollama", "github", "gemini", "other"]}
+        }
+      }
+    },
+    "editorial_board_coi": {
+      "type": "object",
+      "description": "Special case for authors on the target journal's editorial board (e.g. Synthesis). If any is_board_member=true, that author must NOT be first or last, and the body/metadata must include an explicit no-role-in-editorial-decisions paragraph.",
+      "properties": {
+        "any_board_member": {"type": "boolean"},
+        "no_role_paragraph_included": {"type": "boolean"},
+        "journal_name_exact": {"type": "string"}
+      }
+    }
+  },
+  "$defs": {
+    "author": {
+      "type": "object",
+      "required": ["full_name", "email", "affiliation"],
+      "properties": {
+        "full_name":   {"type": "string", "minLength": 2, "maxLength": 120},
+        "email":       {"type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"},
+        "affiliation": {"type": "string", "minLength": 2, "maxLength": 200},
+        "orcid":       {"type": ["string", "null"], "pattern": "^(https://orcid\\.org/)?\\d{4}-\\d{4}-\\d{4}-\\d{3}[0-9X]$"},
+        "is_board_member_of_target_journal": {"type": "boolean"}
+      }
+    }
+  }
+}

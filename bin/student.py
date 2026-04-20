@@ -28,7 +28,7 @@ from ai.friendly_error import translate
 
 VERSION = "0.2.0-plan-A"
 
-SUBCOMMANDS = ("new", "ai", "data", "validate", "publish", "baseline", "dashboard", "rules", "sentinel", "memory", "doctor", "help")
+SUBCOMMANDS = ("new", "ai", "data", "validate", "publish", "baseline", "drift", "dashboard", "enroll-authors", "rules", "sentinel", "memory", "doctor", "help")
 
 
 def _cmd_help(_args) -> int:
@@ -127,6 +127,51 @@ def _cmd_doctor(_args) -> int:
     return run_diagnostic()
 
 
+def _cmd_drift(args) -> int:
+    """Snapshot or check living-paper drift for a slug."""
+    from tools.drift_detector import snapshot, check, format_report  # noqa: WPS433
+    try:
+        idx = sys.argv.index("drift")
+    except ValueError:
+        return 2
+    rest = sys.argv[idx + 1:]
+    if not rest or rest[0] not in ("snapshot", "check"):
+        print("Usage: student drift snapshot --slug <name>   OR   student drift check --slug <name>")
+        return 2
+    mode = rest[0]
+    slug = args.slug
+    if not slug:
+        print("--slug is required.")
+        return 2
+    if mode == "snapshot":
+        try:
+            path = snapshot(slug)
+        except FileNotFoundError as exc:
+            print(str(exc))
+            return 2
+        print(f"Snapshot: {path}")
+        return 0
+    try:
+        report = check(slug)
+    except FileNotFoundError as exc:
+        print(str(exc))
+        return 2
+    print(format_report(report))
+    return 1 if report.drifted else 0
+
+
+def _cmd_enroll_authors(args) -> int:
+    """Interactive prompt that writes authorship.json for a paper slug."""
+    from tools.authorship import enrol_interactive  # noqa: WPS433
+    slug = args.slug
+    if not slug:
+        print("Usage: student enroll-authors --slug <paper-slug>")
+        return 2
+    path = enrol_interactive(slug)
+    print(f"\nAuthorship record saved: {path}")
+    return 0
+
+
 def _cmd_dashboard(args) -> int:
     """Generate the supervisor HTML dashboard."""
     from tools.dashboard import build, _e156_root  # noqa: WPS433
@@ -220,6 +265,13 @@ def _cmd_validate(args) -> int:
         if any(i.severity == "BLOCK" for i in issues):
             ok = False
 
+    if args.authorship:
+        from tools.authorship import check as check_authorship, format_issues  # noqa: WPS433
+        issues = check_authorship(args.authorship)
+        print(format_issues(issues))
+        if any(i.severity == "BLOCK" for i in issues):
+            ok = False
+
     return 0 if ok else 1
 
 
@@ -272,6 +324,8 @@ HANDLERS = {
     "publish":  _cmd_publish,
     "baseline": _cmd_baseline,
     "dashboard": _cmd_dashboard,
+    "drift":    _cmd_drift,
+    "enroll-authors": _cmd_enroll_authors,
     "rules":    _not_yet("rules"),       # Plan A task 13
     "sentinel": _cmd_sentinel,
     "memory":   _cmd_memory,
@@ -300,6 +354,8 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="check every YOUR REWRITE block in a workbook file")
     p.add_argument("--strict", action="store_true",
                    help="also run Tier-C robustness checks (S4 numeric+estimand, S7 boundary substance, placeholders)")
+    p.add_argument("--authorship", default=None,
+                   help="also run authorship contract check on this paper slug (expects %%LOCALAPPDATA%%\\e156\\workbook\\<slug>\\authorship.json)")
     p.add_argument("--verbose", "-v", action="store_true")
     return p
 
