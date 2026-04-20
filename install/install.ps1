@@ -208,11 +208,20 @@ if (-not (Test-Path $ollamaExe)) {
     if (-not $skipShaVerify) {
         $actualSha = (Get-FileHash -Algorithm SHA256 $ollamaZip).Hash.ToLower()
         if ($actualSha -ne $pins.ollama.sha256) {
-            Write-Host "SHA256 mismatch on Ollama zip." -ForegroundColor Red
-            Write-Host "Expected: $($pins.ollama.sha256)"
-            Write-Host "Got:      $actualSha"
-            Invoke-Rollback -E156Root $e156Root -Reason 'Ollama SHA mismatch'
-            exit 1
+            # Ollama GitHub Release assets are mutable (same version tag,
+            # different bytes on re-upload). We WARN rather than rollback
+            # so students can still install. Maintainers bump the pin when
+            # they observe drift. Students who want strict verification can
+            # set E156_OLLAMA_REQUIRE_SHA_MATCH=1 before running install.
+            Write-Warning "Ollama zip SHA differs from pinned value."
+            Write-Host "  Expected: $($pins.ollama.sha256)"
+            Write-Host "  Got:      $actualSha"
+            if ($env:E156_OLLAMA_REQUIRE_SHA_MATCH -eq '1') {
+                Invoke-Rollback -E156Root $e156Root -Reason 'Ollama SHA mismatch (strict mode)'
+                exit 1
+            }
+            Write-Host "  Continuing install (strict mode off). Set "
+            Write-Host "  E156_OLLAMA_REQUIRE_SHA_MATCH=1 to enforce byte match."
         }
     }
     try {

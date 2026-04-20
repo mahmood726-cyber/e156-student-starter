@@ -21,7 +21,7 @@ def run_cli(*args):
 def test_version_prints_and_exits_zero():
     r = run_cli("--version")
     assert r.returncode == 0
-    assert "0.3.1-plan-A" in r.stdout
+    assert "0.3.2-plan-A" in r.stdout
 
 
 def test_help_lists_all_subcommands():

@@ -26,7 +26,7 @@ if str(REPO_ROOT) not in sys.path:
 from ai.friendly_error import translate
 
 
-VERSION = "0.3.1-plan-A"
+VERSION = "0.3.2-plan-A"
 
 SUBCOMMANDS = ("new", "ai", "data", "validate", "publish", "baseline", "drift", "checklist", "verify-citations", "dashboard", "enroll-authors", "rules", "sentinel", "memory", "doctor", "help")
 
