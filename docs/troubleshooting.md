@@ -140,9 +140,22 @@ export OLLAMA_MODELS=~/ollama/models
 
 ## "No senior author / no supervisor"
 
-Not a technical error. Type exactly `TBD - request mentor` in the claim
-form's senior-author field. One of the E156 advisory-pool mentors will
-be assigned by the project lead before you submit.
+Not a technical error. **Do NOT type a placeholder** like "TBD", "FIXME",
+or "request mentor" in the senior-author field — `student validate
+--authorship` now blocks those on purpose, because a placeholder
+author is how papers accidentally get submitted with no real senior
+author attached (integrity issue).
+
+Instead:
+
+1. Leave the senior-author field blank for now.
+2. Open an issue at
+   <https://github.com/mahmood726-cyber/e156/issues/new?template=needs-mentor.md>
+   (or label a plain issue `needs-mentor`) with a 2-3 sentence
+   description of your paper topic.
+3. One of the E156 advisory-pool mentors will be assigned before you
+   submit, and they'll fill in the senior-author field with their
+   real name, email, affiliation, and ORCID.
 
 ## Still stuck
 

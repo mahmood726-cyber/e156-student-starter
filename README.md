@@ -43,15 +43,22 @@ for install.
 ### If Windows says "Windows protected your PC"
 
 Click **More info** → **Run anyway**. Windows is cautious about scripts
-from the internet. This one is open-source and the SHA256 hash of the zip
-is published at
-[synthesis-medicine.org/e156-hash.txt](https://synthesis-medicine.org/e156-hash.txt).
-You can verify with PowerShell if you want:
+from the internet. This bundle is open-source and every GitHub Release
+publishes the exact zip SHA256 as a release-notes asset (`RELEASE-HASH.txt`).
+You can verify with PowerShell:
 
-    Get-FileHash -Algorithm SHA256 e156-student-starter-v0.2.0.zip
+    Get-FileHash -Algorithm SHA256 e156-student-starter-v0.3.1-plan-A.zip
 
-Compare the output with the hash on the Synthesis site. If they match, the
-download is intact.
+Compare the hex output with the value in `RELEASE-HASH.txt` attached to
+the release page at
+<https://github.com/mahmood726-cyber/e156-student-starter/releases>.
+If they match, the download is intact.
+
+> **Honest note on out-of-band verification:** an upstream third-party
+> mirror of the hash (on the Synthēsis journal's landing page) is planned
+> for a future release. Until that ships, the only integrity channel is
+> GitHub itself — which is strong if and only if you trust GitHub's TLS.
+> This limitation is tracked in `review-findings.md`.
 
 ### What happens during install
 
@@ -84,8 +91,10 @@ Once the example works:
 1. Browse the **E156 student board**: https://mahmood726-cyber.github.io/e156/students.html
 2. Pick a paper and click **Claim this paper**.
 3. Fill the form (name, affiliation, email, senior-author nomination).
-   If you don't have a faculty supervisor yet, type exactly
-   `TBD - request mentor` and one will be assigned.
+   If you don't have a faculty supervisor yet, open an issue on the
+   student-board repo with the label `needs-mentor` and leave the
+   senior-author field blank. **Do NOT type a placeholder like "TBD"
+   in the author field** — the bundle validator blocks that on purpose.
 4. You have **42 days** to rewrite the 156-word body and submit to
    Synthēsis (synthesis-medicine.org). The workflow is documented on
    the student board and in the SUBMISSION METADATA block of every

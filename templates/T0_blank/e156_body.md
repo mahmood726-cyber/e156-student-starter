@@ -1,19 +1,7 @@
-<!--
-  E156 body - 7 sentences, 156 words max, one estimand.
-  Replace every {{token}} before you submit.
-  Run `student validate` before `git push`.
--->
-
-**S1 - Question.** {{S1_QUESTION}}
-
-**S2 - Dataset.** {{S2_DATASET}}
-
-**S3 - Method.** {{S3_METHOD}}
-
-**S4 - Result.** {{S4_RESULT}}
-
-**S5 - Robustness.** {{S5_ROBUSTNESS}}
-
-**S6 - Interpretation.** {{S6_INTERPRETATION}}
-
-**S7 - Boundary.** {{S7_BOUNDARY}}
+S1 Question: {{replace with one specific research question in 20-25 words ending with a question mark}}.
+S2 Dataset: {{name the data source, years covered, and number of units in 18-22 words}}.
+S3 Method: {{describe your analysis in 18-22 words naming one primary estimand such as OR HR RR SMD or proportion}}.
+S4 Result: {{report the pooled estimate with a 95 percent confidence interval and a one-phrase plain-language magnitude in 28-32 words}}.
+S5 Robustness: {{describe one sensitivity analysis that could overturn S4 and its effect in 20-24 words}}.
+S6 Interpretation: {{state what a Ugandan clinician or policymaker should take away in 20-24 words}}.
+S7 Boundary: {{state who this does NOT apply to or what it excludes in 18-22 words}}.

@@ -41,6 +41,16 @@ def authorship_path(slug: str) -> Path:
     return _workbook_root() / slug / "authorship.json"
 
 
+_PLACEHOLDER_NAME_PATTERNS = (
+    re.compile(r"\bTBD\b", re.I),
+    re.compile(r"\bTO\s*BE\s*DETERMINED\b", re.I),
+    re.compile(r"request.*mentor", re.I),
+    re.compile(r"\bFIXME\b", re.I),
+    re.compile(r"\bplaceholder\b", re.I),
+    re.compile(r"^\s*\?\?+\s*$"),
+)
+
+
 def _validate_author(role: str, a: dict) -> list[AuthorshipIssue]:
     out: list[AuthorshipIssue] = []
     if not isinstance(a, dict):
@@ -51,6 +61,12 @@ def _validate_author(role: str, a: dict) -> list[AuthorshipIssue]:
     aff = (a.get("affiliation") or "").strip()
     if len(name) < 2:
         out.append(AuthorshipIssue("BLOCK", role, f"{role}.full_name missing or too short"))
+    for pat in _PLACEHOLDER_NAME_PATTERNS:
+        if pat.search(name):
+            out.append(AuthorshipIssue("BLOCK", role,
+                f"{role}.full_name appears to be a placeholder ({name!r}). "
+                "Replace with a real author or remove that author slot."))
+            break
     if not _EMAIL_RE.match(email):
         out.append(AuthorshipIssue("BLOCK", role, f"{role}.email invalid: {email!r}"))
     if len(aff) < 2:
@@ -220,7 +236,7 @@ def enrol_interactive(slug: str, *, input_fn=input, orcid_verify=True) -> Path:
             "\nAny author is on the target journal's editorial board. "
             "Have you included the 'no role in editorial decisions' paragraph? [y/N]: "
         ).strip().lower() == "y"),
-        "journal_name_exact": "Synthesis",
+        "journal_name_exact": "Synth\u0113sis",
     }
     return save_authorship(slug, data)
 

@@ -35,7 +35,7 @@
     },
     "editorial_board_coi": {
       "type": "object",
-      "description": "Special case for authors on the target journal's editorial board (e.g. Synthesis). If any is_board_member=true, that author must NOT be first or last, and the body/metadata must include an explicit no-role-in-editorial-decisions paragraph.",
+      "description": "Special case for authors on the target journal's editorial board (e.g. Synth\u0113sis). If any is_board_member=true, that author must NOT be first or last, and the body/metadata must include an explicit no-role-in-editorial-decisions paragraph.",
       "properties": {
         "any_board_member": {"type": "boolean"},
         "no_role_paragraph_included": {"type": "boolean"},

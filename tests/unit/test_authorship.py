@@ -49,7 +49,7 @@ VALID = {
     "editorial_board_coi": {
         "any_board_member": True,
         "no_role_paragraph_included": True,
-        "journal_name_exact": "Synthesis",
+        "journal_name_exact": "Synth\u0113sis",
     },
 }
 

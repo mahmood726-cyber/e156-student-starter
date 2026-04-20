@@ -1,7 +1,7 @@
 {
   "ollama": {
     "version": "v0.5.7",
-    "sha256": "eb565d16c8025e37d09fbb234c627c7c13f05c5f007bfa8f76fa6b6b8695ca31",
+    "sha256": "82a6fd71e4fff0ed1621e3b80709bcf44f636696214aa772ec9779c490e9d7a4",
     "url": "https://github.com/ollama/ollama/releases/download/v0.5.7/ollama-windows-amd64.zip"
   },
   "models": {
@@ -22,7 +22,7 @@
     "url": "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip"
   },
   "bundle_release": {
-    "version": "0.2.0-plan-A",
+    "version": "0.3.1-plan-A",
     "self_sha256": null
   }
 }

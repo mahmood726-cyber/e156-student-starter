@@ -55,38 +55,105 @@ def _sha256_file(path: Path) -> str:
 
 
 def _hash_identity(consent: dict) -> dict:
-    """Return a consent fingerprint: hashed identity + AGREE timestamp + flags."""
+    """Return a consent fingerprint: salted-hash of identity + flags + timestamp.
+
+    The salt is per-laptop, generated once and stored in consent.json (never
+    published). Without the salt, a global attacker with a student roster
+    could brute-force SHA256(name|email) pairs in milliseconds. With the
+    salt, brute-force requires the laptop's specific salt — which only the
+    verifier (i.e. the student, verifying their own fingerprint to a
+    supervisor) can read.
+    """
     name = consent.get("name", "")
     email = consent.get("email", "")
+    salt = consent.get("identity_salt", "")  # 64 hex chars; see `ensure_consent_has_salt`
     identity_sha = hashlib.sha256(
-        (name.lower() + "|" + email.lower()).encode("utf-8")
+        (salt + "|" + name.lower() + "|" + email.lower()).encode("utf-8")
     ).hexdigest()
     return {
         "identity_sha256": identity_sha,
+        "salt_present": bool(salt),
         "gemma_acknowledged_at": consent.get("gemma_acknowledged_at"),
         "cloud_enabled": consent.get("cloud_enabled", False),
         "gemma_license_acknowledged": consent.get("gemma_license_acknowledged", False),
     }
 
 
-def _filter_audit_log(slug: str, e156_root: Path) -> list[dict]:
-    """Return audit entries that mention this slug in their task_kind or prompt hash.
-    (We don't store raw prompts, so slug-filtering is opportunistic via the kind tag.)
-    For now, return ALL audit entries within a 48-hour window of the paper's most
-    recent edit — students can always trim further by hand.
+def ensure_consent_has_salt(consent_path: Path) -> str:
+    """Idempotently add a per-laptop 32-byte salt to consent.json if missing.
+    Returns the salt (hex). Called by publish flow and by the wizard."""
+    import json as _json
+    import secrets
+    if not consent_path.is_file():
+        return ""
+    try:
+        data = _json.loads(consent_path.read_text(encoding="utf-8"))
+    except (_json.JSONDecodeError, OSError):
+        return ""
+    salt = data.get("identity_salt")
+    if not salt or not isinstance(salt, str) or len(salt) < 32:
+        salt = secrets.token_hex(32)
+        data["identity_salt"] = salt
+        try:
+            consent_path.write_text(_json.dumps(data, indent=2), encoding="utf-8")
+        except OSError:
+            pass
+    return salt
+
+
+def _filter_audit_log(slug: str, e156_root: Path, workbook: Path) -> list[dict]:
+    """Return audit entries plausibly associated with this paper.
+
+    We DON'T store raw prompts in the audit log, so exact slug-matching is
+    impossible. Instead we use the paper's last-modified window: audit entries
+    whose timestamp falls within the paper-dir's mtime window (first touch to
+    latest touch, +/- 1 hour slack) are included. Entries from before the
+    paper existed or after it was last modified are excluded.
+
+    This matches what a supervisor expects ('filtered' = for THIS paper) without
+    requiring the student to have tagged calls at the time of use.
     """
     log = e156_root / "logs" / "ai_calls.jsonl"
+    paper = workbook / slug
     if not log.is_file():
         return []
-    entries = []
+    # Determine paper's time window
+    try:
+        stat = paper.stat()
+        earliest = min(
+            (p.stat().st_mtime for p in paper.rglob("*") if p.is_file()),
+            default=stat.st_mtime,
+        )
+        latest = max(
+            (p.stat().st_mtime for p in paper.rglob("*") if p.is_file()),
+            default=stat.st_mtime,
+        )
+    except OSError:
+        earliest, latest = 0.0, 9_999_999_999.0
+    # +/-1 hour slack
+    lo = earliest - 3600
+    hi = latest + 3600
+
+    entries: list[dict] = []
     for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
         line = line.strip()
         if not line:
             continue
         try:
-            entries.append(json.loads(line))
+            e = json.loads(line)
         except json.JSONDecodeError:
             continue
+        ts_raw = e.get("ts") or ""
+        try:
+            # Parse ISO-8601 UTC timestamps with optional offset
+            from datetime import datetime
+            ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00")).timestamp()
+        except (ValueError, TypeError):
+            # Undated entries land in the window — better over-inclusive than drop
+            entries.append(e)
+            continue
+        if lo <= ts <= hi:
+            entries.append(e)
     return entries
 
 
@@ -236,17 +303,19 @@ def build_pack(slug: str, *, out_dir: Path | None = None) -> Path:
         if findings_src.is_file():
             shutil.copy2(findings_src, stage / "sentinel-findings.jsonl")
 
-        # 4. Audit log filtered
-        audit_entries = _filter_audit_log(slug, e156_root)
+        # 4. Audit log filtered (entries within paper's edit window)
+        audit_entries = _filter_audit_log(slug, e156_root, workbook)
         (stage / "ai_calls_filtered.jsonl").write_text(
             "\n".join(json.dumps(e) for e in audit_entries) + ("\n" if audit_entries else ""),
             encoding="utf-8",
         )
 
-        # 5. Consent fingerprint (NEVER raw name/email)
+        # 5. Consent fingerprint (NEVER raw name/email). Salted per-laptop.
         consent_src = e156_root / ".consent.json"
         if consent_src.is_file():
             try:
+                # Ensure a salt exists (idempotent; writes once per laptop)
+                ensure_consent_has_salt(consent_src)
                 consent = json.loads(consent_src.read_text(encoding="utf-8"))
                 (stage / "consent_fingerprint.json").write_text(
                     json.dumps(_hash_identity(consent), indent=2), encoding="utf-8",
