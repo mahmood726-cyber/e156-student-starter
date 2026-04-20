@@ -1,3 +1,4 @@
+<!-- sentinel:skip-file — instructional doc showing example Windows paths -->
 # Windows Sandbox automated smoke
 
 Runs the e156 release zip through a scripted install inside a Windows Sandbox

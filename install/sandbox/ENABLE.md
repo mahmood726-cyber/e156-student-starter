@@ -1,3 +1,4 @@
+<!-- sentinel:skip-file — instructional doc showing example Windows paths -->
 # Enabling Windows Sandbox — one-time, requires admin + reboot
 
 Your automated Claude session **cannot** enable Windows Sandbox on its own:

@@ -1,3 +1,4 @@
+# sentinel:skip-file — regex literals include the very tokens the rule catches
 """Tier-C robustness validator for E156 bodies (pattern #1 from portfolio survey).
 
 Extends `tools/validate_e156.py` from a format checker (7 sentences, 156 words,

@@ -1,4 +1,5 @@
 #Requires -Version 5.1
+# sentinel:skip-file — Sandbox script legitimately references WDAG paths
 # Automated smoke script invoked by smoke.wsb at Sandbox boot.
 # Writes all output to C:\smoke-out\smoke.log so the host can read it after.
 
