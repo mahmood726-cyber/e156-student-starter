@@ -28,7 +28,7 @@ from ai.friendly_error import translate
 
 VERSION = "0.2.0-plan-A"
 
-SUBCOMMANDS = ("new", "ai", "data", "validate", "publish", "baseline", "rules", "sentinel", "memory", "doctor", "help")
+SUBCOMMANDS = ("new", "ai", "data", "validate", "publish", "baseline", "dashboard", "rules", "sentinel", "memory", "doctor", "help")
 
 
 def _cmd_help(_args) -> int:
@@ -66,6 +66,17 @@ def _cmd_new(args) -> int:
 def _cmd_doctor(_args) -> int:
     from tools.get_unstuck import run as run_diagnostic  # noqa: WPS433
     return run_diagnostic()
+
+
+def _cmd_dashboard(args) -> int:
+    """Generate the supervisor HTML dashboard."""
+    from tools.dashboard import build, _e156_root  # noqa: WPS433
+    html_text = build()
+    out = Path(args.out) if args.out else (_e156_root() / "workbook" / "dashboard.html")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(html_text, encoding="utf-8")
+    print(f"Dashboard written: {out}")
+    return 0
 
 
 def _cmd_baseline(args) -> int:
@@ -193,6 +204,7 @@ HANDLERS = {
     "validate": _cmd_validate,
     "publish":  _cmd_publish,
     "baseline": _cmd_baseline,
+    "dashboard": _cmd_dashboard,
     "rules":    _not_yet("rules"),       # Plan A task 13
     "sentinel": _cmd_sentinel,
     "memory":   _cmd_memory,
@@ -215,6 +227,8 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="overwrite existing memory dir (use with memory init)")
     p.add_argument("--path", default=None,
                    help="paper body .txt path (for `student validate`)")
+    p.add_argument("--out", default=None,
+                   help="output path (for `student dashboard`)")
     p.add_argument("--all", action="store_true",
                    help="check every YOUR REWRITE block in a workbook file")
     p.add_argument("--verbose", "-v", action="store_true")
