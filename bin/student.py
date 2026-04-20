@@ -212,6 +212,14 @@ def _cmd_validate(args) -> int:
     ok, msgs = validate(text, label=str(target_path))
     for m in msgs:
         print(m)
+
+    if args.strict:
+        from tools.e156_robustness_engine import run_checks, format_report  # noqa: WPS433
+        issues = run_checks(text)
+        print(format_report(issues))
+        if any(i.severity == "BLOCK" for i in issues):
+            ok = False
+
     return 0 if ok else 1
 
 
@@ -290,6 +298,8 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="output path (for `student dashboard`)")
     p.add_argument("--all", action="store_true",
                    help="check every YOUR REWRITE block in a workbook file")
+    p.add_argument("--strict", action="store_true",
+                   help="also run Tier-C robustness checks (S4 numeric+estimand, S7 boundary substance, placeholders)")
     p.add_argument("--verbose", "-v", action="store_true")
     return p
 
