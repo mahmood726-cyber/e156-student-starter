@@ -28,7 +28,7 @@ from ai.friendly_error import translate
 
 VERSION = "0.2.0-plan-A"
 
-SUBCOMMANDS = ("new", "ai", "data", "validate", "rules", "sentinel", "memory", "doctor", "help")
+SUBCOMMANDS = ("new", "ai", "data", "validate", "publish", "rules", "sentinel", "memory", "doctor", "help")
 
 
 def _cmd_help(_args) -> int:
@@ -66,6 +66,28 @@ def _cmd_new(args) -> int:
 def _cmd_doctor(_args) -> int:
     from tools.get_unstuck import run as run_diagnostic  # noqa: WPS433
     return run_diagnostic()
+
+
+def _cmd_publish(args) -> int:
+    """Build reproducibility pack for a paper in the workbook."""
+    from tools.publish_pack import build_pack, _workbook_root  # noqa: WPS433
+    if not args.slug and not args.all:
+        print("Usage: student publish --slug <name>   OR   student publish --all")
+        return 2
+    workbook = _workbook_root()
+    slugs = [args.slug] if args.slug else [
+        p.name for p in workbook.iterdir()
+        if p.is_dir() and not p.name.startswith(".")
+    ]
+    built = []
+    for slug in slugs:
+        try:
+            zp = build_pack(slug)
+            print(f"Published: {zp}")
+            built.append(zp)
+        except FileNotFoundError as exc:
+            print(f"Skipped {slug}: {exc}")
+    return 0 if built else 1
 
 
 def _cmd_validate(args) -> int:
@@ -157,6 +179,7 @@ HANDLERS = {
     "ai":       _not_yet("ai"),          # Plan B
     "data":     _not_yet("data"),        # Plan D
     "validate": _cmd_validate,
+    "publish":  _cmd_publish,
     "rules":    _not_yet("rules"),       # Plan A task 13
     "sentinel": _cmd_sentinel,
     "memory":   _cmd_memory,
