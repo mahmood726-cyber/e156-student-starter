@@ -9,10 +9,37 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+from datetime import datetime
 from pathlib import Path
 
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
+
+# Matches runs of non-alphanumeric ASCII — used as the "replace with hyphen" class.
+_NON_ALNUM_RUN = re.compile(r"[^a-z0-9]+")
+
+
+def title_to_slug(title: str) -> str:
+    """Turn a human paper title into a filesystem-safe slug.
+
+    - Lowercases.
+    - Strips diacritics (NFKD) so "sacubitril/valsartan" and "HFrEF" work.
+    - Replaces any non-[a-z0-9] run with a single hyphen.
+    - Strips leading/trailing hyphens.
+    - Truncates to 64 chars.
+    - If the result is empty or one char, falls back to a timestamped name
+      `paper-YYYYMMDD-HHMMSS` so the user always gets a valid slug without
+      ever hitting the SLUG_RE error.
+    """
+    import unicodedata
+    decomposed = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode("ascii")
+    lower = decomposed.lower().strip()
+    candidate = _NON_ALNUM_RUN.sub("-", lower).strip("-")[:64]
+
+    # A one-letter slug fails SLUG_RE; so does empty. Fall back to timestamp.
+    if len(candidate) < 2 or not candidate[0].isalpha():
+        return "paper-" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    return candidate
 
 
 def scaffold(template: str, slug: str, workbook: Path, repo_root: Path) -> Path:

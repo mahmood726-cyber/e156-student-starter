@@ -26,9 +26,9 @@ if str(REPO_ROOT) not in sys.path:
 from ai.friendly_error import translate
 
 
-VERSION = "0.3.2-plan-A"
+VERSION = "0.4.1-plan-A"
 
-SUBCOMMANDS = ("new", "ai", "data", "validate", "publish", "baseline", "drift", "checklist", "verify-citations", "dashboard", "enroll-authors", "rules", "sentinel", "memory", "doctor", "help")
+SUBCOMMANDS = ("new", "chat", "ai", "data", "validate", "publish", "baseline", "drift", "checklist", "verify-citations", "dashboard", "enroll-authors", "rules", "sentinel", "memory", "doctor", "help")
 
 
 def _cmd_help(_args) -> int:
@@ -49,8 +49,13 @@ def _cmd_new(args) -> int:
         from bin.help_me_pick import run as run_picker
         run_picker()
         return 0
-    from bin.scaffold import scaffold
-    slug = args.slug or input("Pick a short slug (lowercase, hyphens): ").strip()
+    from bin.scaffold import scaffold, title_to_slug
+    if args.slug:
+        slug = args.slug
+    else:
+        title = input("What's your paper about? (or leave blank for auto-name): ").strip()
+        slug = title_to_slug(title) if title else title_to_slug("")
+        print(f"  -> folder name: {slug}")
     workbook = Path(os.environ.get("LOCALAPPDATA", "")) / "e156" / "workbook"
     workbook.mkdir(parents=True, exist_ok=True)
     try:
@@ -58,6 +63,15 @@ def _cmd_new(args) -> int:
                           repo_root=Path(__file__).resolve().parents[1])
     except NotImplementedError as e:
         print(f"\n{e}\n")
+        return 1
+    except ValueError as e:
+        # Input-validation errors from scaffold (bad slug, unknown template).
+        # These are actionable by the student directly — don't route through
+        # the generic translator.
+        print(f"\n{e}\n")
+        return 2
+    except FileExistsError as e:
+        print(f"\n{e}\nPick a different --slug or remove the existing folder first.\n")
         return 1
     print(f"Scaffolded: {target}")
     return 0
@@ -340,9 +354,16 @@ def _not_yet(cmd: str):
     return _run
 
 
+def _cmd_chat(_args) -> int:
+    """Open a persistent AI chat session (Claude Code-style)."""
+    from bin.chat import run as run_chat
+    return run_chat()
+
+
 HANDLERS = {
     "help":     _cmd_help,
     "new":      _cmd_new,
+    "chat":     _cmd_chat,
     "ai":       _cmd_ai,
     "data":     _not_yet("data"),        # Plan D
     "validate": _cmd_validate,
@@ -411,7 +432,27 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return handler(args)
     except Exception as exc:  # noqa: BLE001
-        print(str(translate(exc)))
+        # The UX promise (ai/friendly_error.py docstring) says raw tracebacks
+        # go to ~/e156/logs/. That promise was previously unkept — translate()
+        # returned a one-liner with no log written. Now we actually write one.
+        import os, traceback
+        from datetime import datetime
+        lad = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+        logs_dir = Path(lad) / "e156" / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        log_path = logs_dir / f"error-{datetime.now().strftime('%Y%m%d-%H%M%S')}.log"
+        try:
+            log_path.write_text(
+                f"subcommand: {args.subcommand}\nargv: {sys.argv}\n\n" + traceback.format_exc(),
+                encoding="utf-8",
+            )
+        except OSError:
+            log_path = None  # couldn't write; still show friendly message
+        friendly = translate(exc)
+        print(friendly)
+        if log_path is not None:
+            print(f"Full error saved to: {log_path}")
+            print("(Include this file if asking for help.)")
         return 1
 
 

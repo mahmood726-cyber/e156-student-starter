@@ -19,8 +19,9 @@ class Action(NamedTuple):
 MENU: list[Action] = [
     # Beginner — daily flow
     Action("Start a new paper",                  "new"),
+    Action("Chat with the AI (conversation)",    "chat"),
     Action("Check my paper (validate)",          "validate"),
-    Action("Ask the AI to help me",              "ai"),
+    Action("Ask the AI one question (one-shot)", "ai"),
     Action("Download data for my analysis",      "data pull"),
     Action("Get unstuck / send diagnostics",     "doctor"),
     # Submission flow

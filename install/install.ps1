@@ -2,17 +2,27 @@
 # install.ps1 - E156 student starter bootstrap (Windows)
 #
 # Run from PowerShell (no admin needed):
-#   .\install.ps1                 # full install, auto tier
-#   .\install.ps1 -LowRam         # force 8 GB tier
+#   .\install.ps1                 # CLOUD-ONLY default -- no 1.92 GB Ollama download
+#   .\install.ps1 -LocalAI        # opt-in: download Ollama + models for offline use
+#   .\install.ps1 -LowRam         # force 4 GB tier (cloud-only, no model pulls)
 #   .\install.ps1 -DryRun         # just verify SHA gate, exit 0
 #   .\install.ps1 -Import         # dot-source helpers only (used by tests)
-#   .\install.ps1 -CloudOnly      # skip model pulls; rely on cloud backend later
+#   .\install.ps1 -CloudOnly      # deprecated alias -- same as default
+#   .\install.ps1 -NonInteractive # skip the Gemini key prompt (for CI / unattended)
+#
+# Rationale for cloud-only default (v0.4.1): upstream Ollama Windows zip is
+# 1.92 GB. On 5 Mbps residential connections (typical outside major African
+# cities) that's 3-15 hours. For most students the cloud-only path -- <2 MB
+# install footprint + Gemini free tier -- is the right default. Power users
+# with fast connections or offline needs opt in with -LocalAI.
 
 [CmdletBinding()]
 param(
     [switch]$DryRun,
     [switch]$LowRam,
-    [switch]$CloudOnly,
+    [switch]$CloudOnly,   # kept for backwards compat; now redundant with default
+    [switch]$LocalAI,     # opt into the 1.92 GB Ollama download
+    [switch]$NonInteractive,
     [switch]$Import
 )
 
@@ -173,14 +183,26 @@ $ramGb = [int]((Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize / 
 if ($LowRam) { $ramGb = 4 }
 $tier = Select-Tier -RamGb $ramGb
 
+# Cloud-only is now the DEFAULT. Local Ollama requires explicit -LocalAI.
+# Rationale: 1.92 GB Ollama download is a 3-15 hour blocker on typical
+# African student connections. Gemini free tier gives them AI in <2 min.
+$cloudOnly = (-not $LocalAI) -or $tier.CloudOnly -or $CloudOnly
+
 Write-Host ""
 Write-Host "RAM detected: $ramGb GB. Tier: $($tier.Name)." -ForegroundColor Cyan
-if ($tier.CloudOnly -or $CloudOnly) {
-    Write-Host "Local AI tier disabled (low RAM or -CloudOnly). Cloud opt-in required later." -ForegroundColor Yellow
+if ($cloudOnly) {
+    if ($LocalAI) {
+        Write-Host "NOTE: -LocalAI passed but RAM is too low for local models. Falling back to cloud." -ForegroundColor Yellow
+    } else {
+        Write-Host "Mode: cloud AI (Gemini free tier). No Ollama download." -ForegroundColor Green
+        Write-Host "      (Re-run with -LocalAI if you want offline / local models.)" -ForegroundColor DarkGray
+    }
     $tier = [PSCustomObject]@{ Name = $tier.Name; ProseModel = $null; CodeModel = $null; CloudOnly = $true }
+} else {
+    Write-Host "Mode: local AI (Ollama + $($tier.ProseModel) + $($tier.CodeModel)). Expect ~1.92 GB download." -ForegroundColor Yellow
 }
 
-# --- Step 2: download portable Ollama --------------------------------------
+# --- Step 2: download portable Ollama (skipped in cloud-only mode) -------
 
 $pinsPath = Join-Path $bundleRoot 'config\pins.json'
 if (-not (Test-Path $pinsPath)) {
@@ -190,6 +212,13 @@ if (-not (Test-Path $pinsPath)) {
 $pins = Get-Content $pinsPath -Raw | ConvertFrom-Json
 
 $ollamaExe = Join-Path $ollamaDir 'ollama.exe'
+
+if ($cloudOnly) {
+    Write-Step "Cloud-only mode: skipping Ollama download (~1.92 GB saved)"
+    # fall through to Step 5 (.env) and Step 7 (cloud consent flow)
+}
+
+if (-not $cloudOnly) {
 
 # Build the ordered list of (URL, SHA, source) tuples to try.
 # Mirror first (content-stable, strict SHA), upstream second (mutable, WARN-not-BLOCK).
@@ -245,7 +274,7 @@ if (-not (Test-Path $ollamaExe)) {
                     Remove-Item $ollamaZip -Force
                     $shaOk = $false
                 } else {
-                    # Upstream SHA mismatch — v0.5.7 mutable-asset reality. WARN-not-BLOCK.
+                    # Upstream SHA mismatch -- v0.5.7 mutable-asset reality. WARN-not-BLOCK.
                     Write-Warning "Upstream Ollama zip SHA differs from pinned value."
                     Write-Host "  Expected: $($attempt.Sha)"
                     Write-Host "  Got:      $actualSha"
@@ -263,7 +292,7 @@ if (-not (Test-Path $ollamaExe)) {
         if (-not $shaOk) { continue }
 
         # Step C: extract. Critical lesson from v0.4.0-rc1 stress test:
-        # SHA-match does NOT prove ZIP integrity — a truncated download can
+        # SHA-match does NOT prove ZIP integrity -- a truncated download can
         # hash-match the previous truncated capture. If Expand-Archive fails
         # with a content-stable source, we know the mirror is corrupt and
         # should fall through to upstream rather than rollback.
@@ -290,19 +319,22 @@ if (-not (Test-Path $ollamaExe)) {
 } else {
     Write-Ok "Ollama already present at $ollamaExe"
 }
+}  # end of: if (-not $cloudOnly)  for Step 2
 
-# --- Step 3: env + start ollama serve --------------------------------------
+# --- Step 3: env + start ollama serve (skipped in cloud-only mode) -------
 
-[Environment]::SetEnvironmentVariable('OLLAMA_MODELS', $modelsDir, 'User')
-$env:OLLAMA_MODELS = $modelsDir
+if (-not $cloudOnly) {
+    [Environment]::SetEnvironmentVariable('OLLAMA_MODELS', $modelsDir, 'User')
+    $env:OLLAMA_MODELS = $modelsDir
 
-$existing = Get-Process ollama -ErrorAction SilentlyContinue
-if (-not $existing) {
-    Start-Process -FilePath $ollamaExe -ArgumentList 'serve' -WindowStyle Hidden
-    Start-Sleep -Seconds 3
-    Write-Ok 'ollama serve started.'
-} else {
-    Write-Ok "ollama already running (PID $($existing.Id))"
+    $existing = Get-Process ollama -ErrorAction SilentlyContinue
+    if (-not $existing) {
+        Start-Process -FilePath $ollamaExe -ArgumentList 'serve' -WindowStyle Hidden
+        Start-Sleep -Seconds 3
+        Write-Ok 'ollama serve started.'
+    } else {
+        Write-Ok "ollama already running (PID $($existing.Id))"
+    }
 }
 
 # --- Step 4: pull models with retry ----------------------------------------
@@ -325,16 +357,74 @@ if (-not $tier.CloudOnly) {
 $envFile = Join-Path $e156Root '.env'
 $proseLine = if ($tier.ProseModel) { "E156_PROSE_MODEL=$($tier.ProseModel)" } else { "# E156_PROSE_MODEL= (cloud-only mode)" }
 $codeLine  = if ($tier.CodeModel)  { "E156_CODE_MODEL=$($tier.CodeModel)" }   else { "# E156_CODE_MODEL= (cloud-only mode)" }
+if ($cloudOnly) {
+    $ollamaLine = "# OLLAMA_HOST= (cloud-only mode -- no local Ollama)"
+} else {
+    $ollamaLine = "OLLAMA_HOST=http://127.0.0.1:11434"
+}
 $envContent = @"
 # Auto-generated by install.ps1 on $(Get-Date -Format 'yyyy-MM-dd HH:mm')
 $proseLine
 $codeLine
-OLLAMA_HOST=http://127.0.0.1:11434
-# Uncomment to enable cloud fallback (egress: data leaves your laptop):
-# GEMINI_API_KEY=your_key_here
+$ollamaLine
+# Cloud provider keys (filled in by the wizard below, or add by hand):
+# GEMINI_API_KEY=AIzaSy...
+# GITHUB_TOKEN=ghp_...
 "@
 [System.IO.File]::WriteAllText($envFile, $envContent, (New-Object System.Text.UTF8Encoding $false))
 Write-Ok "Wrote $envFile"
+
+# --- Step 5b: cloud-key wizard (cloud-only default path) ------------------
+# Writes .consent.json with cloud_enabled=true + appends GEMINI_API_KEY to .env
+# if the student pastes one. Skipped under -NonInteractive (CI) and when
+# stdin isn't a TTY (piped or redirected -- common in pytest subprocess calls).
+
+function Add-GeminiKeyToEnv {
+    param([string]$EnvPath, [string]$Key)
+    $text = Get-Content -Raw -Path $EnvPath
+    $text = $text -replace '(?m)^# GEMINI_API_KEY=.*$', "GEMINI_API_KEY=$Key"
+    [System.IO.File]::WriteAllText($EnvPath, $text, (New-Object System.Text.UTF8Encoding $false))
+}
+
+function Write-CloudConsent {
+    param([string]$E156Root, [bool]$Enabled)
+    $consentPath = Join-Path $E156Root '.consent.json'
+    $payload = @{ cloud_enabled = $Enabled; set_at = (Get-Date -Format 'o') } | ConvertTo-Json -Compress
+    [System.IO.File]::WriteAllText($consentPath, $payload, (New-Object System.Text.UTF8Encoding $false))
+}
+
+if ($cloudOnly -and -not $NonInteractive -and [Console]::IsInputRedirected -eq $false) {
+    Write-Host ""
+    Write-Host "======================================================"
+    Write-Host "  Cloud AI setup (takes ~30 seconds)"
+    Write-Host "======================================================"
+    Write-Host ""
+    Write-Host "You can get a free Gemini API key here:"
+    Write-Host "  https://aistudio.google.com/apikey"
+    Write-Host ""
+    Write-Host "Free tier = 1 million tokens/day (plenty for writing papers)."
+    Write-Host "Paste your key below, or press Enter to skip (you can add it"
+    Write-Host "later with: student ai enable-cloud --i-understand-egress)."
+    Write-Host ""
+    $key = Read-Host "Gemini API key (starts with AIzaSy) or Enter to skip"
+    $key = $key.Trim()
+    if ($key -match '^AIzaSy[A-Za-z0-9_-]{33}$') {
+        Add-GeminiKeyToEnv -EnvPath $envFile -Key $key
+        Write-CloudConsent -E156Root $e156Root -Enabled $true
+        Write-Ok "Gemini key saved. Cloud AI ready."
+    } elseif ($key -ne '') {
+        Write-Warning "That doesn't look like a Gemini API key (expected AIzaSy + 33 chars)."
+        Write-Host "  You can add it later with: student ai enable-cloud --i-understand-egress"
+        Write-CloudConsent -E156Root $e156Root -Enabled $false
+    } else {
+        Write-Host "No key entered. You can add one later with:"
+        Write-Host "  student ai enable-cloud --i-understand-egress"
+        Write-CloudConsent -E156Root $e156Root -Enabled $false
+    }
+} elseif ($cloudOnly) {
+    # Non-interactive / CI / piped stdin -- just write consent=false, no key.
+    Write-CloudConsent -E156Root $e156Root -Enabled $false
+}
 
 # --- Step 6: smoke test + gated banner -------------------------------------
 

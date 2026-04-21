@@ -30,12 +30,18 @@ def test_start_bat_first_run_prints_install_instruction(tmp_path, monkeypatch):
 @pytest.mark.skipif(os.name != "nt", reason="Windows-only E2E")
 @pytest.mark.integration
 def test_install_ps1_rollback_on_unreachable_ollama(tmp_path, monkeypatch):
-    """If the Ollama download URL is unreachable, %LOCALAPPDATA%\\e156\\ is cleaned up."""
+    """If the Ollama download URL is unreachable AND -LocalAI is opted in,
+    %LOCALAPPDATA%\\e156\\ is cleaned up.
+
+    v0.4.1 note: cloud-only is now the default, which skips the Ollama download
+    entirely — the rollback path only fires under -LocalAI, so the test must
+    pass that flag explicitly to exercise the branch under test.
+    """
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     monkeypatch.setenv("E156_OLLAMA_URL_OVERRIDE", "http://127.0.0.1:1/does-not-exist")
     r = subprocess.run(
         ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-         "-File", str(REPO_ROOT / "install" / "install.ps1")],
+         "-File", str(REPO_ROOT / "install" / "install.ps1"), "-LocalAI", "-NonInteractive"],
         capture_output=True, text=True, timeout=120,
     )
     assert not (tmp_path / "e156").exists(), \

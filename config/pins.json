@@ -31,7 +31,7 @@
     "_mirror_note": "Validated 2026-04-21: zipfile.ZipFile parses, 34 members, exact-byte match with python.org canonical. Safe to use."
   },
   "bundle_release": {
-    "version": "0.4.0-rc2-plan-A",
+    "version": "0.4.1-plan-A",
     "self_sha256": null
   }
 }
