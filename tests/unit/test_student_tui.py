@@ -37,3 +37,25 @@ def test_tui_shows_all_actions_in_fallback():
                    "Get unstuck",
                    "Quit"):
         assert action in r.stdout
+
+
+def test_tui_exposes_every_cli_subcommand():
+    """TUI coherence gate: every student CLI subcommand (except 'help') must be
+    reachable from the menu. Closes the v0.3.2 review finding that 9 subcommands
+    were CLI-only."""
+    sys.path.insert(0, str(REPO_ROOT))
+    try:
+        from bin.student import SUBCOMMANDS  # noqa: WPS433
+        from bin.tui import MENU  # noqa: WPS433
+    finally:
+        sys.path.pop(0)
+
+    menu_subcommands = set()
+    for action in MENU:
+        if not action.subcommand:
+            continue
+        # `data pull` -> `data` (subcommand root)
+        menu_subcommands.add(action.subcommand.split()[0])
+
+    missing = set(SUBCOMMANDS) - menu_subcommands - {"help"}
+    assert not missing, f"TUI missing CLI subcommands: {sorted(missing)}"

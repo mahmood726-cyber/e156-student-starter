@@ -1,7 +1,14 @@
-"""Help-me-pick wizard: 3 yes/no questions -> recommend T1..T5 + one recommended badge."""
+"""Help-me-pick wizard: 3 yes/no questions -> recommend T1..T5 + one recommended badge.
+
+Templates may be stubs (see _TEMPLATE_DIRS / .stub marker). When the recommended
+template is a stub, the wizard switches to honesty mode: no [Recommended] badge,
+explicit 'not implemented yet' note, and a T0 fallback for users who want to
+start now.
+"""
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 
 _QUESTIONS = [
@@ -18,6 +25,29 @@ _TEMPLATES_HELP = {
     "T4": "MA replication - rerun a published meta-analysis and quantify |Delta|.",
     "T5": "Living MA seed - new topic, set up a CT.gov watcher.",
 }
+
+_TEMPLATE_DIRS = {
+    "T0": "T0_blank",
+    "T1": "T1_pairwise_mini_ma",
+    "T2": "T2_trials_audit",
+    "T3": "T3_burden_snapshot",
+    "T4": "T4_ma_replication",
+    "T5": "T5_living_ma_seed",
+}
+
+_FALLBACK_CODE = "T0"
+
+
+def _templates_root() -> Path:
+    return Path(__file__).resolve().parent.parent / "templates"
+
+
+def is_stub(code: str) -> bool:
+    """True iff the template directory exists and contains a .stub marker."""
+    dirname = _TEMPLATE_DIRS.get(code)
+    if dirname is None:
+        return False
+    return (_templates_root() / dirname / ".stub").is_file()
 
 
 def recommend(pools_drugs: str, one_country_one_condition: str,
@@ -47,16 +77,27 @@ def run() -> int:
         answers.append(ans)
 
     choice = recommend(*answers)
-    print("\nRecommended template:")
-    print(f"  [\u2605 Recommended] {choice} - {_TEMPLATES_HELP[choice]}\n")
-    print("All templates:")
-    for code, desc in _TEMPLATES_HELP.items():
-        mark = "\u2605" if code == choice else " "
-        print(f"  {mark} {code} - {desc}")
+    choice_is_stub = is_stub(choice)
 
-    confirm = input(f"\nUse {choice}? [Y/n] ").strip().lower()
+    print("\nRecommended template:")
+    if choice_is_stub:
+        # Honesty mode: don't claim the template is ready when it isn't.
+        print(f"  {choice} - {_TEMPLATES_HELP[choice]}")
+        print(f"    (NOT YET IMPLEMENTED - this template is a stub.)")
+        print(f"    Falling back to {_FALLBACK_CODE} (blank scaffold) so you can start now.")
+    else:
+        print(f"  [\u2605 Recommended] {choice} - {_TEMPLATES_HELP[choice]}")
+
+    print("\nAll templates:")
+    for code, desc in _TEMPLATES_HELP.items():
+        status = "[stub]" if is_stub(code) else "[ready]"
+        mark = "\u2605" if (code == choice and not choice_is_stub) else " "
+        print(f"  {mark} {code} {status:7s} - {desc}")
+
+    actual = _FALLBACK_CODE if choice_is_stub else choice
+    confirm = input(f"\nUse {actual}? [Y/n] ").strip().lower()
     if confirm in ("", "y", "yes"):
-        print(f"\nGreat - next run: student new --template {choice}")
+        print(f"\nGreat - next run: student new --template {actual}")
         return 0
     print("\nNo problem. Run `student new --template TN` when you've picked one.")
     return 0

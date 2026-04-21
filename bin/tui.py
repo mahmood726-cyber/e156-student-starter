@@ -17,12 +17,25 @@ class Action(NamedTuple):
 
 
 MENU: list[Action] = [
-    Action("Start a new paper",              "new"),
-    Action("Check my paper (validate)",      "validate"),
-    Action("Ask the AI to help me",          "ai"),
-    Action("Download data for my analysis",  "data pull"),
-    Action("Get unstuck / send diagnostics", "doctor"),
-    Action("Quit",                           ""),
+    # Beginner — daily flow
+    Action("Start a new paper",                  "new"),
+    Action("Check my paper (validate)",          "validate"),
+    Action("Ask the AI to help me",              "ai"),
+    Action("Download data for my analysis",      "data pull"),
+    Action("Get unstuck / send diagnostics",     "doctor"),
+    # Submission flow
+    Action("Publish current paper",              "publish"),
+    Action("Verify citations against PubMed",    "verify-citations"),
+    Action("Enroll co-authors (CRediT/ORCID)",   "enroll-authors"),
+    Action("Open the paper dashboard",           "dashboard"),
+    # Quality + compliance
+    Action("Show project rules / EQUATOR",       "rules"),
+    Action("View Sentinel findings",             "sentinel"),
+    Action("Run drift baseline check",           "baseline"),
+    Action("Show drift report (vs baseline)",    "drift"),
+    Action("Open EQUATOR checklist",             "checklist"),
+    Action("Inspect session memory",             "memory"),
+    Action("Quit",                               ""),
 ]
 
 
