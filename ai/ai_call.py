@@ -46,10 +46,15 @@ from dataclasses import dataclass
 
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 PREFER = os.environ.get("E156_AI_PREFER", "").strip().lower()
 DEBUG = os.environ.get("E156_AI_DEBUG", "") == "1"
+
+# Cloud credentials are NOT held as module-level constants. Reading them at
+# call time from os.environ keeps them out of any namespace that other
+# in-process code can `from ai.ai_call import GITHUB_TOKEN`. Actual HTTP
+# call runs in cloud_subproc.py — see that file for the threat model.
+def _has_cloud_credential(name: str) -> bool:
+    return bool(os.environ.get(name, ""))
 
 # Task kinds that are PII-sensitive by definition. These kinds are valid
 # for local Ollama but are HARD-BLOCKED from every cloud backend, regardless
@@ -126,11 +131,11 @@ def _ollama_up(timeout: float = 1.0) -> bool:
 
 
 def _github_models_up() -> bool:
-    return bool(GITHUB_TOKEN)
+    return _has_cloud_credential("GITHUB_TOKEN")
 
 
 def _gemini_up() -> bool:
-    return bool(GEMINI_API_KEY)
+    return _has_cloud_credential("GEMINI_API_KEY")
 
 
 # --- Router ----------------------------------------------------------------
@@ -196,36 +201,49 @@ def _call_ollama(model: str, prompt: str) -> str:
         return json.loads(resp.read())["response"]
 
 
+def _call_cloud_subproc(provider: str, model: str, prompt: str) -> str:
+    """Spawn ai/cloud_subproc.py to make the HTTP call.
+
+    The credential lives in this process's os.environ but is NEVER bound to
+    a module-level constant (so `from ai.ai_call import ...` can't grab it).
+    The child process inherits env, reads the key, makes the HTTP call,
+    and exits — keeping the cloud-call code path off the parent's import graph.
+    """
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    child = os.path.join(here, "cloud_subproc.py")
+    payload = json.dumps({"provider": provider, "model": model, "prompt": prompt})
+    try:
+        proc = subprocess.run(
+            [sys.executable, child],
+            input=payload,
+            capture_output=True,
+            text=True,
+            timeout=130,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f"cloud subprocess timeout for {provider}: {e}") from e
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"cloud subprocess crashed (rc={proc.returncode}) for {provider}: "
+            f"{(proc.stderr or '').strip()[:300]}"
+        )
+    try:
+        out = json.loads(proc.stdout)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"cloud subprocess returned non-JSON for {provider}: {e}") from e
+    if not out.get("ok"):
+        raise RuntimeError(f"{provider} call failed: {out.get('error', 'unknown')}")
+    return out["text"]
+
+
 def _call_github_models(model: str, prompt: str) -> str:
-    data = json.dumps({
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.7,
-    }).encode()
-    req = urllib.request.Request(
-        GITHUB_MODELS_ENDPOINT,
-        data=data,
-        headers={
-            "Authorization": f"Bearer {GITHUB_TOKEN}",
-            "Content-Type": "application/json",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        payload = json.loads(resp.read())
-    return payload["choices"][0]["message"]["content"]
+    return _call_cloud_subproc("github", model, prompt)
 
 
 def _call_gemini(model: str, prompt: str) -> str:
-    url = f"{GEMINI_ENDPOINT}/{model}:generateContent?key={GEMINI_API_KEY}"
-    data = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}]
-    }).encode()
-    req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        payload = json.loads(resp.read())
-    return payload["candidates"][0]["content"]["parts"][0]["text"]
+    return _call_cloud_subproc("gemini", model, prompt)
 
 
 # --- Public entrypoint -----------------------------------------------------
@@ -283,7 +301,7 @@ def ask(task_kind: str, prompt: str) -> Response:
                     )
                 if not _cloud_consent_given():
                     raise ConsentRequiredError("cloud_enabled=false")
-                if not GITHUB_TOKEN:
+                if not _has_cloud_credential("GITHUB_TOKEN"):
                     raise RuntimeError("GITHUB_TOKEN not set")
                 text = _call_github_models(m, prompt)
             elif b == "gemini":
@@ -293,7 +311,7 @@ def ask(task_kind: str, prompt: str) -> Response:
                     )
                 if not _cloud_consent_given():
                     raise ConsentRequiredError("cloud_enabled=false")
-                if not GEMINI_API_KEY:
+                if not _has_cloud_credential("GEMINI_API_KEY"):
                     raise RuntimeError("GEMINI_API_KEY not set")
                 text = _call_gemini(m, prompt)
             else:
