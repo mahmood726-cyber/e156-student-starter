@@ -216,9 +216,11 @@ if (-not (Test-Path $ollamaExe)) {
     Write-Step "Downloading portable Ollama $($pins.ollama.version)"
     $ollamaZip = Join-Path $ollamaDir 'ollama-portable.zip'
 
-    $downloaded = $false
+    $extracted = $false
     foreach ($attempt in $ollamaSources) {
         Write-Host "  source: $($attempt.Source) -> $($attempt.Url)" -ForegroundColor DarkGray
+
+        # Step A: download
         try {
             try {
                 Start-BitsTransfer -Source $attempt.Url -Destination $ollamaZip -Description "Ollama portable ($($attempt.Source))" -ErrorAction Stop
@@ -231,58 +233,60 @@ if (-not (Test-Path $ollamaExe)) {
             continue
         }
 
-        if ($attempt.Source -eq 'override') {
-            # Test injection — skip SHA check, accept whatever was served.
-            $downloaded = $true
-            break
+        # Step B: SHA gate (skip for override; mirror = strict; upstream = WARN-not-BLOCK)
+        $shaOk = $true
+        if ($attempt.Source -ne 'override') {
+            $actualSha = (Get-FileHash -Algorithm SHA256 $ollamaZip).Hash.ToLower()
+            if ($actualSha -ne $attempt.Sha) {
+                if ($attempt.Source -eq 'mirror') {
+                    Write-Warning "Mirror SHA mismatch; falling through to upstream."
+                    Write-Host "  Expected: $($attempt.Sha)"
+                    Write-Host "  Got:      $actualSha"
+                    Remove-Item $ollamaZip -Force
+                    $shaOk = $false
+                } else {
+                    # Upstream SHA mismatch — v0.5.7 mutable-asset reality. WARN-not-BLOCK.
+                    Write-Warning "Upstream Ollama zip SHA differs from pinned value."
+                    Write-Host "  Expected: $($attempt.Sha)"
+                    Write-Host "  Got:      $actualSha"
+                    if ($env:E156_OLLAMA_REQUIRE_SHA_MATCH -eq '1') {
+                        Invoke-Rollback -E156Root $e156Root -Reason 'Ollama SHA mismatch (strict mode)'
+                        exit 1
+                    }
+                    Write-Host "  Continuing install (strict mode off). Set"
+                    Write-Host "  E156_OLLAMA_REQUIRE_SHA_MATCH=1 to enforce byte match."
+                }
+            } else {
+                Write-Ok "SHA verified ($($attempt.Source) = $actualSha)"
+            }
         }
+        if (-not $shaOk) { continue }
 
-        $actualSha = (Get-FileHash -Algorithm SHA256 $ollamaZip).Hash.ToLower()
-        if ($actualSha -eq $attempt.Sha) {
-            Write-Ok "SHA verified ($($attempt.Source) = $actualSha)"
-            $downloaded = $true
-            break
-        }
-
-        if ($attempt.Source -eq 'mirror') {
-            # Mirror is content-stable by contract; mismatch means the mirror
-            # was tampered with or our pin record is wrong. Fall through to
-            # upstream rather than failing — but log loudly.
-            Write-Warning "Mirror SHA mismatch; falling through to upstream."
-            Write-Host "  Expected: $($attempt.Sha)"
-            Write-Host "  Got:      $actualSha"
+        # Step C: extract. Critical lesson from v0.4.0-rc1 stress test:
+        # SHA-match does NOT prove ZIP integrity — a truncated download can
+        # hash-match the previous truncated capture. If Expand-Archive fails
+        # with a content-stable source, we know the mirror is corrupt and
+        # should fall through to upstream rather than rollback.
+        try {
+            Expand-Archive -Path $ollamaZip -DestinationPath $ollamaDir -Force -ErrorAction Stop
             Remove-Item $ollamaZip -Force
+            Write-Ok "Ollama extracted to $ollamaDir (source: $($attempt.Source))"
+            $extracted = $true
+            break
+        } catch {
+            Write-Warning "Extract from $($attempt.Source) failed: $($_.Exception.Message)"
+            if (Test-Path $ollamaZip) { Remove-Item $ollamaZip -Force -ErrorAction SilentlyContinue }
+            # Clean any partial extracted files before retry
+            Get-ChildItem $ollamaDir -Filter "*.dll" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+            Get-ChildItem $ollamaDir -Filter "*.exe" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
             continue
         }
-
-        # Upstream SHA mismatch: this is the v0.5.7 mutable-asset reality.
-        # WARN-not-BLOCK (v0.3.2 behavior). Strict mode honors E156_OLLAMA_REQUIRE_SHA_MATCH.
-        Write-Warning "Upstream Ollama zip SHA differs from pinned value."
-        Write-Host "  Expected: $($attempt.Sha)"
-        Write-Host "  Got:      $actualSha"
-        if ($env:E156_OLLAMA_REQUIRE_SHA_MATCH -eq '1') {
-            Invoke-Rollback -E156Root $e156Root -Reason 'Ollama SHA mismatch (strict mode)'
-            exit 1
-        }
-        Write-Host "  Continuing install (strict mode off). Set"
-        Write-Host "  E156_OLLAMA_REQUIRE_SHA_MATCH=1 to enforce byte match."
-        $downloaded = $true
-        break
     }
 
-    if (-not $downloaded) {
-        Invoke-Rollback -E156Root $e156Root -Reason 'All Ollama sources failed (mirror + upstream).'
+    if (-not $extracted) {
+        Invoke-Rollback -E156Root $e156Root -Reason 'All Ollama sources failed download or extract (mirror + upstream).'
         exit 1
     }
-
-    try {
-        Expand-Archive -Path $ollamaZip -DestinationPath $ollamaDir -Force
-        Remove-Item $ollamaZip -Force
-    } catch {
-        Invoke-Rollback -E156Root $e156Root -Reason "Ollama extract failed: $($_.Exception.Message)"
-        exit 1
-    }
-    Write-Ok "Ollama extracted to $ollamaDir"
 } else {
     Write-Ok "Ollama already present at $ollamaExe"
 }

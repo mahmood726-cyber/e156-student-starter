@@ -3,10 +3,11 @@
     "version": "v0.5.7",
     "sha256": "82a6fd71e4fff0ed1621e3b80709bcf44f636696214aa772ec9779c490e9d7a4",
     "url": "https://github.com/ollama/ollama/releases/download/v0.5.7/ollama-windows-amd64.zip",
-    "mirror_url": "https://github.com/mahmood726-cyber/e156-binary-mirror/releases/download/mirror-2026-04-20/ollama-windows-amd64.zip",
-    "mirror_sha256": "eb565d16c8025e37d09fbb234c627c7c13f05c5f007bfa8f76fa6b6b8695ca31",
-    "mirror_tag": "mirror-2026-04-20",
-    "_note": "mirror_* are content-stable (strict SHA enforced). url/sha256 are upstream fallback (mutable; SHA mismatch becomes WARN, not BLOCK)."
+    "mirror_url": null,
+    "mirror_sha256": null,
+    "mirror_tag": null,
+    "_mirror_status": "broken-pending-recapture-v0.5",
+    "_mirror_note": "mirror-2026-04-20 release shipped a 380 MB ollama-windows-amd64.zip that SHA-verified but failed Expand-Archive (BadZipFile). Real upstream is 1.92 GB; original capture was a truncated download. Mirror_url disabled in v0.4.0-rc2 to avoid wasting student bandwidth on the doomed mirror attempt. install.ps1 now falls through on Expand-Archive failure too (defense-in-depth). Re-capture with validate_assets.py + restore mirror_url in v0.5."
   },
   "models": {
     "gemma2:2b":          {"digest": "sha256:7462734796d67c40ecec2ca98eddf970e171dbb6b370e43fd633ee75b69abe1b"},
@@ -26,10 +27,11 @@
     "url": "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip",
     "mirror_url": "https://github.com/mahmood726-cyber/e156-binary-mirror/releases/download/mirror-2026-04-20/python-3.11.9-embed-amd64.zip",
     "mirror_sha256": "009d6bf7e3b2ddca3d784fa09f90fe54336d5b60f0e0f305c37f400bf83cfd3b",
-    "mirror_tag": "mirror-2026-04-20"
+    "mirror_tag": "mirror-2026-04-20",
+    "_mirror_note": "Validated 2026-04-21: zipfile.ZipFile parses, 34 members, exact-byte match with python.org canonical. Safe to use."
   },
   "bundle_release": {
-    "version": "0.4.0-rc1-plan-A",
+    "version": "0.4.0-rc2-plan-A",
     "self_sha256": null
   }
 }
