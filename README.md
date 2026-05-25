@@ -1,5 +1,7 @@
 # E156 Student Starter
 
+[![codeql](https://github.com/mahmood726-cyber/e156-student-starter/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/mahmood726-cyber/e156-student-starter/actions/workflows/codeql.yml) [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![python: 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+
 A complete research-infrastructure bootstrap for medical and public-health
 students. Runs entirely on your own laptop. No subscription required.
 
