@@ -25,7 +25,6 @@ import re
 import sys
 from pathlib import Path
 
-
 MAX_WORDS = 156
 EXPECTED_SENTENCES = 7
 

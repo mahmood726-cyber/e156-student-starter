@@ -15,6 +15,7 @@ Usage:
   python tiny_model_benchmark.py --save results.json
 """
 from __future__ import annotations
+
 import argparse
 import io
 import json
@@ -163,7 +164,7 @@ def main() -> int:
     ap.add_argument("--save", help="save full results as JSON to this path")
     args = ap.parse_args()
 
-    print(f"Benchmarking with:")
+    print("Benchmarking with:")
     print(f"  prose: {args.prose_model}")
     print(f"  code:  {args.code_model}")
     print()

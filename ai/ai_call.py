@@ -1,124 +1,111 @@
 """Task-typed AI router for the E156 student starter.
 
 Design goals:
-  1. **Students shouldn't think about which model to call.** They ask for
-     `prose`, `code`, `stats`, `review`, or `quick` and the router picks.
-  2. **Local-first.** Ollama models (Gemma 2 9B for prose, Qwen 2.5 Coder
-     7B for code) are the default. Cloud is a fallback, not a dependency.
-  3. **Graceful degrade.** If Ollama isn't running, fall back to
-     GitHub Models (if GITHUB_TOKEN is set). If that's not set either,
-     fall back to Gemini free tier (if GEMINI_API_KEY is set). If none
-     of those work, exit with a specific message telling the student
-     which backend to set up.
-  4. **Zero-dependency-on-the-hot-path.** The core runs on `urllib` +
-     stdlib only — no pip installs required. Students on 8GB machines
-     with intermittent internet shouldn't be forced to run `pip install`
-     to read a paper.
-
-Usage from the CLI:
-    python ai_call.py prose "Rewrite this 156-word abstract in plainer language: ..."
-    python ai_call.py code  "Fix this pandas .iloc[0] on potentially empty df: ..."
-    python ai_call.py review "Critique this 7-sentence E156 body for methods-accuracy: ..."
-
-Or from another Python file:
-    from ai_call import ask
-    rewrite = ask("prose", "Rewrite this abstract: ...")
-
-Env vars the router reads:
-    OLLAMA_HOST        default http://127.0.0.1:11434
-    GITHUB_TOKEN       if set, GitHub Models becomes an available backend
-    GEMINI_API_KEY     if set, Gemini 1.5 Flash becomes an available backend
-    E156_AI_PREFER     override the router: "gemma" / "qwen" / "github" / "gemini"
-    E156_AI_DEBUG      set to 1 to print which backend was used + latency
-
-The router intentionally makes NO cloud call unless local fails — no
-surprise bills, no surprise data egress, no surprise throttling.
+  1. Students should not need to pick a model manually.
+  2. Local Ollama is the default path.
+  3. Cloud fallback is isolated to a subprocess and gated by consent.
+  4. The hot path stays stdlib-only.
 """
 from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-
+from pathlib import Path
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
-PREFER = os.environ.get("E156_AI_PREFER", "").strip().lower()
-DEBUG = os.environ.get("E156_AI_DEBUG", "") == "1"
 
-# Cloud credentials are NOT held as module-level constants. Reading them at
-# call time from os.environ keeps them out of any namespace that other
-# in-process code can `from ai.ai_call import GITHUB_TOKEN`. Actual HTTP
-# call runs in cloud_subproc.py — see that file for the threat model.
-def _has_cloud_credential(name: str) -> bool:
-    return bool(os.environ.get(name, ""))
-
-# Task kinds that are PII-sensitive by definition. These kinds are valid
-# for local Ollama but are HARD-BLOCKED from every cloud backend, regardless
-# of consent flag. Source: locked spec D10 (data-handling).
-_PATIENT_SENSITIVE_KINDS = frozenset({"patient", "ipd", "dossier", "raw_case"})
-
-
-class ConsentRequiredError(RuntimeError):
-    """Raised when a cloud backend was about to be called without consent.
-    Matches the regex in ai/friendly_error.py so the student gets the
-    plain-English `student ai enable-cloud --i-understand-egress` hint."""
-
-
-def _cloud_consent_given() -> bool:
-    """Read ~/e156/.consent.json::cloud_enabled. Missing file = False."""
-    import json
-    lad = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
-    consent = os.path.join(lad, "e156", ".consent.json")
-    try:
-        with open(consent, encoding="utf-8") as fh:
-            return bool(json.load(fh).get("cloud_enabled", False))
-    except (OSError, json.JSONDecodeError):
-        return False
-
-
-# --- Model choices ---------------------------------------------------------
-#
-# Local Ollama tags — these match what the bootstrap installer pulls.
-# If a student wants to test the 8GB-laptop path, `bootstrap.ps1 --low-ram`
-# pulls gemma2:2b + qwen2.5-coder:1.5b instead and this file works
-# unchanged (the env file overrides the tags).
+# Local Ollama tags. The installer can override these through the env file.
 OLLAMA_MODEL_FOR_PROSE = os.environ.get("E156_PROSE_MODEL", "gemma2:9b")
 OLLAMA_MODEL_FOR_CODE = os.environ.get("E156_CODE_MODEL", "qwen2.5-coder:7b")
 OLLAMA_MODEL_FOR_QUICK = os.environ.get("E156_QUICK_MODEL", "qwen2.5-coder:1.5b")
 
-# GitHub Models free-tier daily quotas (2025): gpt-4o-mini ~150/day,
-# llama-3.3-70b ~150/day. Cheaper models first for review tasks.
 GITHUB_MODELS_ENDPOINT = "https://models.inference.ai.azure.com/chat/completions"
 GITHUB_MODEL_FOR_REVIEW = "gpt-4o-mini"
 
 GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
 GEMINI_MODEL_FOR_REVIEW = "gemini-1.5-flash-latest"
 
+_CLOUD_SUBPROC = Path(__file__).with_name("cloud_subproc.py")
+_CLOUD_BACKENDS = frozenset({"github", "gemini"})
+_PUBLIC_TASK_KINDS = frozenset({"prose", "code", "stats", "review", "quick"})
+_PATIENT_SENSITIVE_KINDS = frozenset({"patient", "ipd", "dossier", "raw_case"})
+_ALLOWED_TASK_KINDS = _PUBLIC_TASK_KINDS | _PATIENT_SENSITIVE_KINDS
 
-# --- Code-signal detector --------------------------------------------------
-#
-# Even when a student asks for `prose`, if the prompt is obviously code
-# (traceback, backticks, def/class) we route to the coder model. This
-# avoids a common failure mode: asking Gemma to "explain" a traceback
-# where Qwen Coder is clearly the better tool.
 _CODE_SIGNALS = (
-    "```python", "```py", "```bash", "```sh",
+    "```python",
+    "```py",
+    "```bash",
+    "```sh",
     "Traceback (most recent call last)",
-    "def ", "class ", "import ",
-    "error:", "Error:", "File \"",
+    "def ",
+    "class ",
+    "import ",
+    "error:",
+    "Error:",
+    'File "',
 )
+
+
+class ConsentRequiredError(RuntimeError):
+    """Raised when a cloud model would be used without consent."""
+
+
+@dataclass
+class Response:
+    text: str
+    backend: str
+    model: str
+    elapsed_ms: int
+
+
+def _debug_enabled() -> bool:
+    return os.environ.get("E156_AI_DEBUG", "") == "1"
+
+
+def _prefer_backend() -> str:
+    return os.environ.get("E156_AI_PREFER", "").strip().lower()
+
+
+def _github_token() -> str:
+    return os.environ.get("GITHUB_TOKEN", "")
+
+
+def _gemini_api_key() -> str:
+    return os.environ.get("GEMINI_API_KEY", "")
+
+
+def _consent_path() -> Path:
+    local_app_data = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    return Path(local_app_data) / "e156" / ".consent.json"
+
+
+def _cloud_consent_given() -> bool:
+    path = _consent_path()
+    if not path.is_file():
+        return False
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return bool(payload.get("cloud_enabled", False))
+
+
+def _ensure_cloud_allowed(task_kind: str) -> None:
+    if task_kind in _PATIENT_SENSITIVE_KINDS:
+        raise ConsentRequiredError("cloud_enabled=false")
+    if not _cloud_consent_given():
+        raise ConsentRequiredError("cloud_enabled=false")
 
 
 def _looks_like_code(prompt: str) -> bool:
     head = prompt[:2000]
     return any(sig in head for sig in _CODE_SIGNALS)
-
-
-# --- Backend availability --------------------------------------------------
 
 
 def _ollama_up(timeout: float = 1.0) -> bool:
@@ -130,221 +117,237 @@ def _ollama_up(timeout: float = 1.0) -> bool:
         return False
 
 
-def _github_models_up() -> bool:
-    return _has_cloud_credential("GITHUB_TOKEN")
+def _github_models_up(token: str | None = None) -> bool:
+    if token is None:
+        token = _github_token()
+    return bool(token)
 
 
-def _gemini_up() -> bool:
-    return _has_cloud_credential("GEMINI_API_KEY")
+def _gemini_up(api_key: str | None = None) -> bool:
+    if api_key is None:
+        api_key = _gemini_api_key()
+    return bool(api_key)
 
 
-# --- Router ----------------------------------------------------------------
+def _route(
+    task_kind: str,
+    prompt: str,
+    *,
+    github_available: bool | None = None,
+    gemini_available: bool | None = None,
+) -> tuple[str, str]:
+    """Return (backend, model) for the task kind + prompt content."""
+    if github_available is None:
+        github_available = _github_models_up()
+    if gemini_available is None:
+        gemini_available = _gemini_up()
 
-
-@dataclass
-class Response:
-    text: str
-    backend: str
-    model: str
-    elapsed_ms: int
-
-
-def _route(task_kind: str, prompt: str) -> tuple[str, str]:
-    """Return (backend, model) given the task kind + prompt content.
-
-    The four rules, in order:
-      1. Explicit student preference (E156_AI_PREFER env) wins.
-      2. Code signals in the prompt → coder model regardless of kind.
-      3. `review` or very long prompts → cloud if available (reviews need
-         nuance + big context; Gemma 9B's 8K context is limiting).
-      4. Default: Gemma for prose, Qwen for code, Qwen-1.5B for quick.
-    """
-    if PREFER == "gemma":
+    prefer = _prefer_backend()
+    if prefer == "gemma":
         return "ollama", OLLAMA_MODEL_FOR_PROSE
-    if PREFER == "qwen":
+    if prefer == "qwen":
         return "ollama", OLLAMA_MODEL_FOR_CODE
-    if PREFER == "github" and _github_models_up():
+    if prefer == "github" and github_available:
         return "github", GITHUB_MODEL_FOR_REVIEW
-    if PREFER == "gemini" and _gemini_up():
+    if prefer == "gemini" and gemini_available:
         return "gemini", GEMINI_MODEL_FOR_REVIEW
 
-    # Code always goes to Qwen (unless local is down — handled in _call).
     if task_kind == "code" or _looks_like_code(prompt):
         return "ollama", OLLAMA_MODEL_FOR_CODE
 
-    # Multi-persona review → cloud if available, else Gemma local (degraded).
     if task_kind == "review" or len(prompt) > 8_000:
-        if _github_models_up():
+        if github_available:
             return "github", GITHUB_MODEL_FOR_REVIEW
-        if _gemini_up():
+        if gemini_available:
             return "gemini", GEMINI_MODEL_FOR_REVIEW
         return "ollama", OLLAMA_MODEL_FOR_PROSE
 
-    # quick → tiny fast model (1.5B)
     if task_kind == "quick":
         return "ollama", OLLAMA_MODEL_FOR_QUICK
 
-    # default: prose → Gemma
     return "ollama", OLLAMA_MODEL_FOR_PROSE
-
-
-# --- Backend calls ---------------------------------------------------------
 
 
 def _call_ollama(model: str, prompt: str) -> str:
     url = f"{OLLAMA_HOST}/api/generate"
     data = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode()
     req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"}
+        url,
+        data=data,
+        headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=600) as resp:
         return json.loads(resp.read())["response"]
 
 
-def _call_cloud_subproc(provider: str, model: str, prompt: str) -> str:
-    """Spawn ai/cloud_subproc.py to make the HTTP call.
+def _call_cloud_subprocess(
+    provider: str,
+    model: str,
+    prompt: str,
+    *,
+    credential_name: str,
+    credential_value: str,
+    endpoint: str,
+) -> str:
+    if not credential_value:
+        raise RuntimeError(f"{credential_name} not set")
+    if not _CLOUD_SUBPROC.is_file():
+        raise RuntimeError(f"cloud subprocess missing: {_CLOUD_SUBPROC}")
 
-    The credential lives in this process's os.environ but is NEVER bound to
-    a module-level constant (so `from ai.ai_call import ...` can't grab it).
-    The child process inherits env, reads the key, makes the HTTP call,
-    and exits — keeping the cloud-call code path off the parent's import graph.
-    """
-    import subprocess
-    here = os.path.dirname(os.path.abspath(__file__))
-    child = os.path.join(here, "cloud_subproc.py")
-    payload = json.dumps({"provider": provider, "model": model, "prompt": prompt})
-    try:
-        proc = subprocess.run(
-            [sys.executable, child],
-            input=payload,
-            capture_output=True,
-            text=True,
-            timeout=130,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as e:
-        raise RuntimeError(f"cloud subprocess timeout for {provider}: {e}") from e
+    child_env = os.environ.copy()
+    child_env.pop("GITHUB_TOKEN", None)
+    child_env.pop("GEMINI_API_KEY", None)
+    child_env[credential_name] = credential_value
+
+    req = {
+        "provider": provider,
+        "model": model,
+        "prompt": prompt,
+        "endpoint": endpoint,
+    }
+    proc = subprocess.run(
+        [sys.executable, str(_CLOUD_SUBPROC)],
+        input=json.dumps(req),
+        capture_output=True,
+        text=True,
+        timeout=180,
+        env=child_env,
+    )
     if proc.returncode != 0:
-        raise RuntimeError(
-            f"cloud subprocess crashed (rc={proc.returncode}) for {provider}: "
-            f"{(proc.stderr or '').strip()[:300]}"
-        )
+        stderr = proc.stderr.strip() or "child process crashed"
+        raise RuntimeError(f"cloud subprocess failed: {stderr}")
+
     try:
-        out = json.loads(proc.stdout)
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"cloud subprocess returned non-JSON for {provider}: {e}") from e
-    if not out.get("ok"):
-        raise RuntimeError(f"{provider} call failed: {out.get('error', 'unknown')}")
-    return out["text"]
+        payload = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"cloud subprocess returned invalid JSON: {exc}") from exc
+
+    if not payload.get("ok"):
+        raise RuntimeError(str(payload.get("error") or "unknown cloud subprocess error"))
+
+    text = payload.get("text")
+    if not isinstance(text, str):
+        raise RuntimeError("cloud subprocess returned non-string text")
+    return text
 
 
-def _call_github_models(model: str, prompt: str) -> str:
-    return _call_cloud_subproc("github", model, prompt)
+def _call_github_models(model: str, prompt: str, token: str) -> str:
+    return _call_cloud_subprocess(
+        "github",
+        model,
+        prompt,
+        credential_name="GITHUB_TOKEN",
+        credential_value=token,
+        endpoint=GITHUB_MODELS_ENDPOINT,
+    )
 
 
-def _call_gemini(model: str, prompt: str) -> str:
-    return _call_cloud_subproc("gemini", model, prompt)
+def _call_gemini(model: str, prompt: str, api_key: str) -> str:
+    return _call_cloud_subprocess(
+        "gemini",
+        model,
+        prompt,
+        credential_name="GEMINI_API_KEY",
+        credential_value=api_key,
+        endpoint=GEMINI_ENDPOINT,
+    )
 
 
-# --- Public entrypoint -----------------------------------------------------
+def _debug_log(message: str) -> None:
+    if _debug_enabled():
+        print(message, file=sys.stderr)
+
+
+def _unique_attempts(attempts: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    unique: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for attempt in attempts:
+        if attempt in seen:
+            continue
+        seen.add(attempt)
+        unique.append(attempt)
+    return unique
 
 
 def ask(task_kind: str, prompt: str) -> Response:
-    """Send `prompt` to whichever backend suits `task_kind` best.
+    """Send ``prompt`` to whichever backend suits ``task_kind`` best."""
+    if task_kind not in _ALLOWED_TASK_KINDS:
+        allowed = "|".join(sorted(_ALLOWED_TASK_KINDS))
+        raise ValueError(f"task_kind must be {allowed}, got {task_kind!r}")
 
-    `task_kind` is one of: prose | code | stats | review | quick.
-    (stats is currently routed the same as prose — kept as a separate
-    label so we can redirect it later without touching call sites.)
-
-    Falls back through backends if the preferred one is unavailable.
-    Raises RuntimeError ONLY if every available backend has been tried
-    and none answered — the message lists exactly which env vars to set.
-    """
-    if task_kind not in {"prose", "code", "stats", "review", "quick",
-                         "patient", "ipd", "dossier", "raw_case"}:
-        raise ValueError(
-            f"task_kind must be prose|code|stats|review|quick "
-            f"(or patient|ipd|dossier|raw_case for local-only), got {task_kind!r}"
-        )
+    github_token = _github_token()
+    gemini_api_key = _gemini_api_key()
 
     attempts: list[tuple[str, str]] = []
-    backend, model = _route(task_kind, prompt)
+    backend, model = _route(
+        task_kind,
+        prompt,
+        github_available=bool(github_token),
+        gemini_available=bool(gemini_api_key),
+    )
     attempts.append((backend, model))
 
-    # Fallback chain if the primary is down.
     if backend == "ollama" and not _ollama_up():
-        if _github_models_up():
+        if github_token:
             attempts.append(("github", GITHUB_MODEL_FOR_REVIEW))
-        if _gemini_up():
+        if gemini_api_key:
             attempts.append(("gemini", GEMINI_MODEL_FOR_REVIEW))
-    elif backend == "github" and not _github_models_up():
+    elif backend == "github" and not github_token:
         if _ollama_up():
             attempts.append(("ollama", OLLAMA_MODEL_FOR_PROSE))
-        if _gemini_up():
+        if gemini_api_key:
             attempts.append(("gemini", GEMINI_MODEL_FOR_REVIEW))
-    elif backend == "gemini" and not _gemini_up():
+    elif backend == "gemini" and not gemini_api_key:
         if _ollama_up():
             attempts.append(("ollama", OLLAMA_MODEL_FOR_PROSE))
+        if github_token:
+            attempts.append(("github", GITHUB_MODEL_FOR_REVIEW))
+
+    attempts = _unique_attempts(attempts)
 
     last_err: Exception | None = None
-    for b, m in attempts:
+    for chosen_backend, chosen_model in attempts:
         start = time.time()
         try:
-            if b == "ollama":
+            if chosen_backend == "ollama":
                 if not _ollama_up():
                     raise RuntimeError(f"Ollama not reachable at {OLLAMA_HOST}")
-                text = _call_ollama(m, prompt)
-            elif b == "github":
-                if task_kind in _PATIENT_SENSITIVE_KINDS:
-                    raise ConsentRequiredError(
-                        f"task_kind={task_kind!r} never leaves your laptop; no cloud fallback."
-                    )
-                if not _cloud_consent_given():
-                    raise ConsentRequiredError("cloud_enabled=false")
-                if not _has_cloud_credential("GITHUB_TOKEN"):
-                    raise RuntimeError("GITHUB_TOKEN not set")
-                text = _call_github_models(m, prompt)
-            elif b == "gemini":
-                if task_kind in _PATIENT_SENSITIVE_KINDS:
-                    raise ConsentRequiredError(
-                        f"task_kind={task_kind!r} never leaves your laptop; no cloud fallback."
-                    )
-                if not _cloud_consent_given():
-                    raise ConsentRequiredError("cloud_enabled=false")
-                if not _has_cloud_credential("GEMINI_API_KEY"):
-                    raise RuntimeError("GEMINI_API_KEY not set")
-                text = _call_gemini(m, prompt)
+                text = _call_ollama(chosen_model, prompt)
+            elif chosen_backend == "github":
+                _ensure_cloud_allowed(task_kind)
+                text = _call_github_models(chosen_model, prompt, github_token)
+            elif chosen_backend == "gemini":
+                _ensure_cloud_allowed(task_kind)
+                text = _call_gemini(chosen_model, prompt, gemini_api_key)
             else:
-                raise RuntimeError(f"unknown backend {b!r}")
+                raise RuntimeError(f"unknown backend {chosen_backend!r}")
+
             elapsed = int((time.time() - start) * 1000)
-            if DEBUG:
-                print(f"[ai_call] backend={b} model={m} took={elapsed}ms", file=sys.stderr)
-            try:
-                from ai.audit_log import record as _audit_record  # noqa: WPS433
-                _audit_record(
-                    task_kind=task_kind, backend=b, model=m,
-                    prompt=prompt, response=text, elapsed_ms=elapsed,
-                )
-            except Exception:
-                pass  # audit log must never break an ai call
-            return Response(text=text, backend=b, model=m, elapsed_ms=elapsed)
-        except Exception as e:
-            last_err = e
-            if DEBUG:
-                print(f"[ai_call] backend={b} FAILED: {e}", file=sys.stderr)
+            _debug_log(
+                f"[ai_call] backend={chosen_backend} model={chosen_model} took={elapsed}ms"
+            )
+            return Response(
+                text=text,
+                backend=chosen_backend,
+                model=chosen_model,
+                elapsed_ms=elapsed,
+            )
+        except ConsentRequiredError:
+            raise
+        except Exception as exc:
+            last_err = exc
+            _debug_log(f"[ai_call] backend={chosen_backend} FAILED: {exc}")
             continue
 
+    tried = ", ".join(f"{b}/{m}" for b, m in attempts) or "<none>"
     raise RuntimeError(
         "All available AI backends failed. Tried: "
-        + ", ".join(f"{b}/{m}" for b, m in attempts)
+        + tried
         + f". Last error: {last_err}. "
         "Set up at least one of: (a) ollama serve + pull gemma2:9b, "
         "(b) GITHUB_TOKEN with Copilot-for-Students, "
         "(c) GEMINI_API_KEY from https://aistudio.google.com/."
     )
-
-
-# --- CLI entrypoint --------------------------------------------------------
 
 
 def _cli() -> int:
@@ -361,14 +364,15 @@ def _cli() -> int:
             file=sys.stderr,
         )
         return 2
+
     task_kind = sys.argv[1]
     prompt = " ".join(sys.argv[2:])
     try:
-        r = ask(task_kind, prompt)
-    except RuntimeError as e:
-        print(str(e), file=sys.stderr)
+        response = ask(task_kind, prompt)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
         return 1
-    print(r.text)
+    print(response.text)
     return 0
 
 

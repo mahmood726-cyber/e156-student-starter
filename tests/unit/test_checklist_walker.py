@@ -1,7 +1,6 @@
 """Reporting-checklist walker — PRISMA 2020, ROB-2, and future additions."""
 from __future__ import annotations
 
-import io
 import json
 import os
 import subprocess
@@ -9,13 +8,15 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from tools.checklist_walker import (
-    CHECKLISTS_DIR, answers_path, compute_coverage,
-    fill_interactive, list_available, load, load_answers,
-    save_answers, status,
+    compute_coverage,
+    fill_interactive,
+    list_available,
+    load,
+    load_answers,
+    save_answers,
+    status,
 )
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 STUDENT_PY = REPO_ROOT / "bin" / "student.py"

@@ -13,6 +13,7 @@ Exit codes:
   2  — bootstrap incomplete (Ollama not running, no models pulled, etc.)
 """
 from __future__ import annotations
+
 import os
 import subprocess
 import sys
