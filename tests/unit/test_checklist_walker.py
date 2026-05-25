@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+
 from tools.checklist_walker import (
     compute_coverage,
     fill_interactive,
