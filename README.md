@@ -159,6 +159,28 @@ access — add `GEMINI_API_KEY=your_key` to `.env`.
 
 ---
 
+## Test
+
+```bash
+python -m pytest -q
+```
+
+The suite under `tests/` includes:
+
+- `tests/unit/` — fast unit tests for the checklist walker, validators,
+  drift detector, baselines, and the rest of the `tools/` modules.
+- `tests/smoke_test.py` — end-to-end smoke that exercises the bundled
+  rule packs.
+- `tests/tiny_model_benchmark.py` — micro-benchmark of the AI router on
+  the tiny local models.
+
+`pytest.ini` registers `tests/` as a package (so the unit subfolder
+imports cleanly) and pins discovery roots. CLI smoke tests use a
+30-second subprocess timeout to ride out cold-start latency under
+suite contention.
+
+---
+
 ## Credits
 
 This starter is a distilled version of the infrastructure at
