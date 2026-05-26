@@ -3,5 +3,5 @@
 # these for both lint and test jobs.
 
 PyYAML>=6.0
-pytest>=8.0
+pytest>=9.0.3
 scipy>=1.11
