@@ -1,3 +1,8 @@
+# sentinel:skip-file — this redaction tool contains secret-format regex
+# patterns (private-key headers, API-key prefixes) BY NECESSITY: it scrubs
+# them out of student diagnostic bundles. Scanning it for "leaked secrets"
+# is a dogfooding false positive — the patterns here are detectors, not
+# leaked material.
 """Diagnostic bundler + redactor for e156-student-starter.
 
 `student doctor` -> gather() -> redact() -> build_zip() -> show contents -> mailto.
