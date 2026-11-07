@@ -2,6 +2,6 @@
 # Pin minimum versions; the CI workflow (.github/workflows/ci.yml) installs
 # these for both lint and test jobs.
 
-PyYAML>=6.0
+PyYAML>=6.0.3
 pytest>=8.0
 scipy>=1.11
